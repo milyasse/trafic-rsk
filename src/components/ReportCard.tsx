@@ -4,7 +4,7 @@ import { reverseGeocode } from "../lib/geocode";
 import { isLive, REPORT_META } from "../lib/reports";
 import { voteReport } from "../services/data";
 import { computeRoutes } from "../services/routes";
-import { setState, useStore, useT } from "../store";
+import { getState, setState, useStore, useT } from "../store";
 import { IconClose } from "./Icons";
 
 function Floating({ children, label, onClose }: { children: ReactNode; label: string; onClose: () => void }) {
@@ -109,10 +109,18 @@ export function PickedCard() {
           {t("map.goHere")}
         </button>
         <button type="button" className="h-11 flex-1 rounded-xl border hairline font-bold"
-          onClick={() => setState({ reportSheet: { at: picked, source: "picked" }, pickedPoint: null })}>
-          {t("map.reportHere")}
+          onClick={() => {
+            setState({ origin: { label, lngLat: picked }, pickedPoint: null });
+            if (getState().destination) void computeRoutes();
+            else setState({ panel: "search", sheetExpanded: true });
+          }}>
+          {t("route.fromHere")}
         </button>
       </div>
+      <button type="button" className="mt-2 h-11 w-full rounded-xl border hairline font-bold"
+        onClick={() => setState({ reportSheet: { at: picked, source: "picked" }, pickedPoint: null })}>
+        {t("map.reportHere")}
+      </button>
     </Floating>
   );
 }

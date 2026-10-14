@@ -2,15 +2,16 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { matchCities } from "../lib/cities";
 import { searchNominatim, searchPlaces, type Place } from "../lib/geocode";
 import { clearRoutes, computeRoutes } from "../services/routes";
-import { useStore, useT } from "../store";
+import { setState, useStore, useT } from "../store";
 import { IconBriefcase, IconClock, IconClose, IconHome, IconPin, IconSearch, IconStar } from "./Icons";
 
 interface Item { id: string; label: string; detail: string; lngLat: [number, number]; icon: "pin" | "home" | "work" | "star" | "clock" | "city" }
 
-export function SearchBox() {
+/** target="destination" : barre principale ; target="origin" : choix du point de départ. */
+export function SearchBox({ target = "destination" }: { target?: "destination" | "origin" }) {
   const t = useT();
   const lang = useStore((s) => s.lang);
-  const destination = useStore((s) => s.destination);
+  const destination = useStore((s) => (target === "origin" ? s.origin : s.destination));
   const userPos = useStore((s) => s.userPos);
   const favorites = useStore((s) => s.favorites);
   const history = useStore((s) => s.history);
@@ -24,7 +25,7 @@ export function SearchBox() {
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (destination) setQuery(destination.label);
+    setQuery(destination?.label ?? "");
   }, [destination]);
 
   useEffect(() => {
@@ -75,7 +76,12 @@ export function SearchBox() {
     setOpen(false);
     setQuery(item.label);
     inputRef.current?.blur();
-    void computeRoutes({ label: item.label, lngLat: item.lngLat });
+    if (target === "origin") {
+      setState({ origin: { label: item.label, lngLat: item.lngLat } });
+      void computeRoutes();
+    } else {
+      void computeRoutes({ label: item.label, lngLat: item.lngLat });
+    }
   };
 
   const onKeyDown = async (e: KeyboardEvent) => {
@@ -114,8 +120,8 @@ export function SearchBox() {
           aria-expanded={open}
           aria-controls={listId}
           aria-autocomplete="list"
-          aria-label={t("search.placeholder")}
-          placeholder={t("search.placeholder")}
+          aria-label={t(target === "origin" ? "route.originPlaceholder" : "search.placeholder")}
+          placeholder={t(target === "origin" ? "route.originPlaceholder" : "search.placeholder")}
           className="h-12 w-full bg-transparent text-[17px] outline-none placeholder:text-[var(--muted)]"
           value={query}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); setActive(-1); }}
@@ -130,7 +136,13 @@ export function SearchBox() {
             type="button"
             className="muted grid h-9 w-9 shrink-0 place-items-center rounded-full hover:bg-[var(--surface-2)]"
             aria-label={t("search.clear")}
-            onClick={() => { setQuery(""); setResults([]); clearRoutes(); inputRef.current?.focus(); }}
+            onClick={() => {
+              setQuery("");
+              setResults([]);
+              if (target === "origin") { setState({ origin: null }); void computeRoutes(); }
+              else clearRoutes();
+              inputRef.current?.focus();
+            }}
           >
             <IconClose size={18} />
           </button>

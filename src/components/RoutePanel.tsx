@@ -6,6 +6,7 @@ import { saveFavorite } from "../services/data";
 import { startNavigation } from "../services/navigation";
 import { clearRoutes, computeRoutes } from "../services/routes";
 import { setState, useStore, useT } from "../store";
+import { SearchBox } from "./SearchBox";
 
 function RouteRow({ route, selected, onSelect }: { route: AnnotatedRoute; selected: boolean; onSelect: () => void }) {
   const t = useT();
@@ -97,14 +98,16 @@ export function RoutePanel() {
   const loading = useStore((s) => s.routeLoading);
   const error = useStore((s) => s.routeError);
   const response = useStore((s) => s.routeResponse);
-  const origin = useStore((s) => s.origin);
   if (!destination) return null;
 
   return (
     <section aria-labelledby="route-title" className="flex flex-col gap-3">
       <div>
         <h2 id="route-title" className="text-lg font-bold leading-tight">{destination.label}</h2>
-        <p className="muted text-sm">{t("route.from")} : {origin?.label ?? t("route.myPosition")}</p>
+      </div>
+      <div>
+        <span className="muted mb-1 block text-sm">{t("route.from")}</span>
+        <SearchBox target="origin" />
       </div>
 
       {loading && <p className="muted py-4" aria-live="polite">{t("route.computing")}</p>}
