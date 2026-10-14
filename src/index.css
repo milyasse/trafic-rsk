@@ -160,3 +160,4 @@ select.field { padding-right: 8px; }
 .stat dd { font-size: 28px; line-height: 32px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .pref-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; font-size: 17px; }
 .panel-title { font-size: 22px; line-height: 28px; font-weight: 700; }
+.pref-row .field { width: auto; min-width: 120px; }
