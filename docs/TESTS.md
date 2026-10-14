@@ -56,3 +56,14 @@
 | Salé (Bab Lamrissa) → Rabat (Agdal) | passage par un pont du Bouregreg, instructions de ronds-points |
 | Témara → Rabat (Hay Riad) | itinéraire par la N1 ou l'A1 / rocade |
 | Navigation réelle | démarrer, s'écarter volontairement : « Vous avez quitté le trajet » puis nouvel itinéraire en moins de 20 s |
+
+## TomTom en production (14/10/2026)
+
+| Contrôle | Résultat |
+|---|---|
+| Traffic Flow : 32 axes | 32 mesures, 0 erreur ; 6 axes ralentis à la première mesure |
+| Traffic Incidents : 4 zones | 54 incidents actifs (26 embouteillages, 13 routes fermées, 15 travaux), descriptions en français |
+| `official_incidents` | lecture publique OK, écriture sans droit refusée (HTTP 401) — contrôle automatique après chaque déploiement |
+| Routing TomTom (Rabat → Kénitra, Rabat → Skhirat, Témara → Rabat, Salé → Agdal) | 3 itinéraires chacun, `traffic_aware=true`, instructions en français, 7 à 22 limitations de vitesse par trajet, péages détectés |
+| Interface (téléphone 375 px) | incidents TomTom sur la carte et dans « Info trafic TomTom (54) », fiche avec retard / longueur / horaires / source, tronçon surligné ; itinéraires « Trafic fluide » avec mention « Durées calculées avec le trafic en temps réel (TomTom) » ; départ choisi depuis un favori |
+| Non vérifié ici | affichage de la limitation de vitesse et de la vitesse actuelle pendant une navigation réelle (nécessite un GPS en mouvement) |
