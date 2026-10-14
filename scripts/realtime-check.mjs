@@ -34,16 +34,23 @@ await new Promise((resolve, reject) => {
 }).catch((e) => fail(e.message));
 ok("B est abonné au canal temps réel");
 
-// Point de test : parking proche de la gare de Rabat-Agdal, avec un léger décalage aléatoire
-const lat = 33.9935 + Math.random() * 0.002;
-const lng = -6.8545 + Math.random() * 0.002;
-const t0 = Date.now();
-const { data: created, error: cErr } = await userA.rpc("create_report", {
-  p_type: "other", p_severity: 1, p_lat: lat, p_lng: lng, p_description: "[test automatique] vérification temps réel",
-});
-if (cErr) fail(`Création : ${cErr.message}`);
+// Point de test aléatoire dans une zone de ~3 km autour de Rabat-Agdal ; on recommence si le point
+// tombe sur un signalement existant (fusion), pour que A soit bien l'auteur.
+let created = null;
+let t0 = 0;
+for (let attempt = 0; attempt < 4; attempt++) {
+  const lat = 33.985 + Math.random() * 0.03;
+  const lng = -6.875 + Math.random() * 0.03;
+  t0 = Date.now();
+  const { data, error } = await userA.rpc("create_report", {
+    p_type: "other", p_severity: 1, p_lat: lat, p_lng: lng, p_description: "[test automatique] vérification temps réel",
+  });
+  if (error) fail(`Création : ${error.message}`);
+  if (!data.merged) { created = data; break; }
+}
+if (!created) fail("Impossible de créer un signalement non fusionné (zone de test encombrée)");
 const id = created.id;
-ok(`A a créé le signalement ${id}${created.merged ? " (fusionné)" : ""}`);
+ok(`A a créé le signalement ${id}`);
 
 let insert = null;
 for (let i = 0; i < 100 && !insert; i++) {
