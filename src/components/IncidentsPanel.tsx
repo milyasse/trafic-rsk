@@ -13,11 +13,11 @@ export function ReportRow({ r, onClick }: { r: Report; onClick?: () => void }) {
     <button
       type="button"
       onClick={onClick ?? (() => { setState({ selectedReportId: r.id, pickedPoint: null }); focusMap([r.lng, r.lat], 15); })}
-      className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-start hover:bg-[var(--surface-2)] ${live ? "" : "opacity-70"}`}
+      className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-start hover:bg-[var(--surface-2)] ${live ? "" : "opacity-70"}`}
     >
       <IncidentBadge type={r.type} size={40} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-bold">
+        <span className="block truncate text-[17px] font-bold">
           {t(`report.type.${r.type}`)}
           {r.severity === 3 && <span className="text-[var(--color-alerte)]"> · {t("report.severity.3")}</span>}
         </span>
@@ -49,7 +49,7 @@ export function IncidentsPanel() {
   return (
     <section aria-labelledby="incidents-title" className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between">
-        <h2 id="incidents-title" className="text-lg font-bold">{t("incidents.title")}</h2>
+        <h2 id="incidents-title" className="panel-title">{t("incidents.title")}</h2>
         <span className="muted text-sm">{t("incidents.count", { n: activeCount })}</span>
       </div>
 
@@ -61,7 +61,7 @@ export function IncidentsPanel() {
         </p>
       )}
 
-      <div className="flex rounded-xl border hairline p-1 text-sm font-bold" role="tablist">
+      <div className="segment" role="tablist">
         {(["active", "history"] as const).map((v) => (
           <button
             key={v}
@@ -69,33 +69,33 @@ export function IncidentsPanel() {
             aria-selected={view === v}
             type="button"
             onClick={() => setView(v)}
-            className={`h-9 flex-1 rounded-lg ${view === v ? "bg-accent text-white" : ""}`}
+            className="segment-item"
           >
             {t(v === "active" ? "incidents.active" : "incidents.history")}
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-2 text-sm">
+      <div className="grid grid-cols-3 gap-2">
         <label>
-          <span className="muted block">{t("incidents.filterCity")}</span>
-          <select className="surface h-10 w-full rounded-lg border hairline px-2" value={filters.city}
+          <span className="field-label">{t("incidents.filterCity")}</span>
+          <select className="field text-[15px]" value={filters.city}
             onChange={(e) => setState({ filters: { ...filters, city: e.target.value } })}>
             <option value="all">{t("incidents.all")}</option>
             {cities.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </label>
         <label>
-          <span className="muted block">{t("incidents.filterType")}</span>
-          <select className="surface h-10 w-full rounded-lg border hairline px-2" value={filters.type}
+          <span className="field-label">{t("incidents.filterType")}</span>
+          <select className="field text-[15px]" value={filters.type}
             onChange={(e) => setState({ filters: { ...filters, type: e.target.value as ReportType | "all" } })}>
             <option value="all">{t("incidents.allTypes")}</option>
             {REPORT_TYPES.map((ty) => <option key={ty} value={ty}>{t(`report.type.${ty}`)}</option>)}
           </select>
         </label>
         <label>
-          <span className="muted block">{t("incidents.filterSeverity")}</span>
-          <select className="surface h-10 w-full rounded-lg border hairline px-2" value={filters.minSeverity}
+          <span className="field-label">{t("incidents.filterSeverity")}</span>
+          <select className="field text-[15px]" value={filters.minSeverity}
             onChange={(e) => setState({ filters: { ...filters, minSeverity: Number(e.target.value) as 1 | 2 | 3 } })}>
             {[1, 2, 3].map((n) => <option key={n} value={n}>{t(`report.severity.${n as 1 | 2 | 3}`)}</option>)}
           </select>

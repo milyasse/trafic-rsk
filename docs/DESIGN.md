@@ -20,3 +20,18 @@
 - **Formes** : boutons et tuiles 14 px, cartes 16 px, barre de recherche 18 px, feuilles 24 px, bandeau de manœuvre 26 px ; ombre « flottant » à deux couches.
 - **Pictogrammes** : tracés vectoriels communs à la maquette (`Icône incident/*`), à l'interface (`src/lib/icons.ts`) et aux marqueurs de la carte.
 - **Mode sombre** : défini dans le code (`src/index.css`) ; l'offre Figma gratuite ne permet qu'un mode de variables.
+
+## Écrans complémentaires (Incidents, Compte, Administration, ordinateur)
+
+Composants ajoutés au fichier Figma : **Ligne incident**, **Champ**, **Interrupteur**, **Segment**, **Statistique**.
+Les écrans 5 à 8 n'ont pas pu être dessinés dans Figma (limite d'appels de l'offre Figma Starter) ; ils sont
+implémentés directement dans l'application à partir de ces composants :
+
+| Écran | Composition |
+|---|---|
+| Incidents | onglets de la feuille · titre 22 + compteur · résumé par pictogramme · Segment « En cours / Dernières 24 h » · 3 Champs de filtre · liste de Lignes incident (pastille 40 px à anneau coloré) |
+| Compte | encart « sans compte » (fond `#F3F5F8`, rayon 14) · Champs e-mail / mot de passe · Bouton primaire pleine largeur · lignes de préférence 48 px avec Interrupteur (48×28) |
+| Administration | bandeau bleu primaire · sections en cartes flottantes (rayon 16, ombre « flottant ») · tuiles Statistique (libellé 14, valeur 28 gras) |
+| Ordinateur (≥ 1024 px) | panneau latéral flottant de 400 px (rayon 24, ombre « flottant ») posé sur la carte, marges de 12 px |
+
+Classes CSS correspondantes : `.field`, `.field-label`, `.segment` / `.segment-item`, `.switch`, `.stat`, `.note-card`, `.pref-row`, `.panel-title`, `.btn-*` (`src/index.css`).

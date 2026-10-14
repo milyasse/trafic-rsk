@@ -119,7 +119,7 @@ body {
 
 /* Feuille inférieure mobile */
 .sheet { border-radius: 24px 24px 0 0; box-shadow: 0 -6px 24px rgb(15 26 38 / .16); }
-@media (min-width: 1024px) { .sheet { border-radius: 0; box-shadow: 1px 0 0 var(--line); } }
+@media (min-width: 1024px) { .sheet { border-radius: 24px; box-shadow: var(--shadow-float); } }
 
 .maplibregl-ctrl-attrib { font-size: 11px; }
 .maplibregl-ctrl-top-right { top: 76px; }
@@ -130,3 +130,33 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* Composants Figma : Champ, Segment, Interrupteur, Statistique, encart */
+.field-label { display: block; color: var(--muted); font-size: 14px; line-height: 18px; margin-bottom: 6px; }
+.field {
+  width: 100%; min-height: 48px; padding: 0 14px; border-radius: 14px;
+  background: var(--surface); color: var(--text); border: 1.5px solid var(--line); font-size: 17px;
+}
+select.field { padding-right: 8px; }
+.field:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.segment { display: flex; gap: 4px; padding: 4px; border-radius: 14px; border: 1.5px solid var(--line); }
+.segment-item { flex: 1; min-height: 40px; border-radius: 10px; font-weight: 700; font-size: 15px; color: var(--text); }
+.segment-item[aria-selected="true"], .segment-item[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.switch {
+  appearance: none; -webkit-appearance: none; flex-shrink: 0; position: relative;
+  width: 48px; height: 28px; border-radius: 9999px; background: var(--line); cursor: pointer; transition: background .15s;
+}
+.switch::before {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 9999px;
+  background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / .25); transition: transform .15s;
+}
+.switch:checked { background: var(--accent); }
+.switch:checked::before { transform: translateX(20px); }
+[dir="rtl"] .switch:checked::before { transform: translateX(-20px); }
+[dir="rtl"] .switch::before { left: auto; right: 3px; }
+.note-card { background: var(--surface-2); border-radius: 14px; padding: 12px 14px; }
+.stat { background: var(--surface-2); border-radius: 14px; padding: 14px 16px; }
+.stat dt { color: var(--muted); font-size: 14px; }
+.stat dd { font-size: 28px; line-height: 32px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pref-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; font-size: 17px; }
+.panel-title { font-size: 22px; line-height: 28px; font-weight: 700; }

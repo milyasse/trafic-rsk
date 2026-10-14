@@ -20,8 +20,8 @@ const ADMIN_COLUMNS = "id,type,severity,description,lat,lng,city,status,confirma
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="surface rounded-2xl border hairline p-4">
-      <h2 className="mb-3 text-lg font-bold">{title}</h2>
+    <section className="surface shadow-float rounded-2xl p-5">
+      <h2 className="panel-title mb-4">{title}</h2>
       {children}
     </section>
   );
@@ -210,23 +210,23 @@ export default function AdminPage({ dark }: { dark: boolean }) {
 
   return (
     <main className="surface-2 min-h-full">
-      <header className="surface sticky top-0 z-10 flex items-center justify-between border-b hairline px-4 py-3">
+      <header className="sticky top-0 z-10 flex items-center justify-between bg-[var(--color-oudaya)] px-5 py-3.5 text-white">
         <h1 className="text-xl font-bold">{t("account.admin")} · {t("app.name")}</h1>
         <div className="flex gap-2">
-          <button type="button" className="h-10 rounded-lg border hairline px-3 font-bold" onClick={() => void load()}>Actualiser</button>
-          <a href="#/" className="bg-accent grid h-10 place-items-center rounded-lg px-3 font-bold text-white">Carte</a>
+          <button type="button" className="btn min-h-10 border-[1.5px] border-white/40 text-white" onClick={() => void load()}>Actualiser</button>
+          <a href="#/" className="btn min-h-10 bg-white text-[var(--color-oudaya)]">Carte</a>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-6xl gap-4 p-4 lg:grid-cols-2">
+      <div className="mx-auto grid max-w-6xl gap-5 p-4 lg:grid-cols-2 lg:p-6">
         <Section title="Statistiques">
           {stats ? (
             <>
-              <dl className="grid grid-cols-3 gap-3 text-center">
+              <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {[["En cours", stats.active], ["24 h", stats.last_24h], ["7 jours", stats.last_7d], ["Masqués", stats.hidden], ["Votes 24 h", stats.votes_24h], ["Comptes", stats.users]].map(([k, v]) => (
-                  <div key={k as string} className="surface-2 rounded-xl p-2">
-                    <dt className="muted text-sm">{k}</dt>
-                    <dd className="tabular text-2xl font-bold">{v}</dd>
+                  <div key={k as string} className="stat">
+                    <dt>{k}</dt>
+                    <dd>{v}</dd>
                   </div>
                 ))}
               </dl>

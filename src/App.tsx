@@ -172,13 +172,13 @@ function MainScreen({ dark }: { dark: boolean }) {
           {/* Panneau : feuille inférieure sur mobile, colonne latérale sur ordinateur */}
           <aside
             className={`sheet surface fixed inset-x-0 bottom-0 z-20 flex flex-col pb-[env(safe-area-inset-bottom)] transition-[max-height] duration-300
-              lg:inset-y-0 lg:start-0 lg:end-auto lg:w-[400px] lg:max-h-none
+              lg:inset-y-3 lg:start-3 lg:end-auto lg:w-[400px] lg:max-h-none
               ${expanded ? "max-h-[72vh]" : "max-h-[156px]"}`}
             aria-label={t("app.name")}
           >
             <div className="hidden flex-col gap-3 p-4 pb-2 lg:flex">
               <div className="flex items-baseline justify-between">
-                <h1 className="text-xl font-bold">{t("app.name")}</h1>
+                <h1 className="panel-title text-[var(--accent)]">{t("app.name")}</h1>
                 <span className="muted text-sm">{t("app.region")}</span>
               </div>
               <SearchBox />
