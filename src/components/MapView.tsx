@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import maplibregl, { type GeoJSONSource, type Map as MLMap, type MapLayerMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import type { Feature, FeatureCollection, Point } from "geojson";
 import { INITIAL_VIEW, MAP_STYLES, MAX_BOUNDS, type Basemap } from "../config";
 import { COVERAGE, inBBox, lineBBox, type LngLat } from "../lib/geo";
 import { isLive, REPORT_META, REPORT_TYPES, type Report } from "../lib/reports";
@@ -12,7 +13,7 @@ const ROUTE_BLUE = "#1D5FA6";
 const ROUTE_CASING = "#0B3563";
 const ROUTE_ALT = "#8FAED3";
 
-type FC = GeoJSON.FeatureCollection;
+type FC = FeatureCollection;
 const emptyFC = (): FC => ({ type: "FeatureCollection", features: [] });
 
 function drawReportIcon(type: (typeof REPORT_TYPES)[number]): ImageData {
@@ -117,7 +118,7 @@ function setupLayers(map: MLMap) {
   }
 }
 
-function circlePolygon(center: LngLat, radiusM: number): GeoJSON.Feature {
+function circlePolygon(center: LngLat, radiusM: number): Feature {
   const pts: LngLat[] = [];
   const latR = radiusM / 111_320;
   const lngR = radiusM / (111_320 * Math.cos((center[1] * Math.PI) / 180));
@@ -222,7 +223,7 @@ export function MapView({ dark }: { dark: boolean }) {
       if (!f) return;
       const src = map.getSource("reports") as GeoJSONSource;
       const zoom = await src.getClusterExpansionZoom(f.properties?.cluster_id as number);
-      map.easeTo({ center: (f.geometry as GeoJSON.Point).coordinates as LngLat, zoom });
+      map.easeTo({ center: (f.geometry as Point).coordinates as LngLat, zoom });
     });
     map.on("click", "route-alt", (e: MapLayerMouseEvent) => {
       const id = e.features?.[0]?.properties?.id as string | undefined;
