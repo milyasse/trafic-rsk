@@ -215,7 +215,6 @@ export const fr = {
   "report.next": "Incident suivant",
   "sheet.expand": "Agrandir le panneau",
   "sheet.collapse": "Réduire le panneau",
-  "incidents.showOnMap": "Voir sur la carte",
   "report.newNearby": "Nouveau : {type} à {d}",
   "report.status.active": "Actif",
   "report.status.confirmed": "Confirmé",
