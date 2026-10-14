@@ -5,10 +5,10 @@ import { clearHistory, deleteAccount, deleteFavorite, loadUserData, savePreferen
 import { computeRoutes } from "../services/routes";
 import { toast, tr, useStore, useT } from "../store";
 
-function AuthForm() {
+export function AuthForm({ initialMode = "signIn" }: { initialMode?: "signIn" | "signUp" }) {
   const t = useT();
   const session = useStore((s) => s.session);
-  const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
+  const [mode, setMode] = useState<"signIn" | "signUp">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -20,12 +20,10 @@ function AuthForm() {
       if (mode === "signIn") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-      } else if (session?.user.is_anonymous) {
-        // Convertir la session invitée en compte : les signalements restent liés
-        const { error } = await supabase.auth.updateUser({ email, password });
-        if (error) throw error;
-        toast(tr("account.checkEmail"), "info", undefined, 9000);
       } else {
+        // Une session invitée (créée lors d'un signalement) est remplacée par le nouveau compte :
+        // c'est plus fiable que la conversion, qui exige une confirmation de changement d'e-mail.
+        if (session?.user.is_anonymous) await supabase.auth.signOut();
         const { data, error } = await supabase.auth.signUp({
           email, password, options: { emailRedirectTo: window.location.origin + window.location.pathname },
         });

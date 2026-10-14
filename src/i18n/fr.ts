@@ -37,6 +37,13 @@ export const fr = {
   "map.attribution": "© OpenStreetMap · OpenFreeMap",
   "map.outOfCoverage": "Ce point est hors de la zone couverte (région Rabat-Salé-Kénitra).",
 
+  // Sélection sur la carte
+  "pick.destination": "Choisir la destination sur la carte",
+  "pick.origin": "Choisir le départ sur la carte",
+  "pick.bannerDestination": "Touchez la carte à l'endroit de votre destination",
+  "pick.bannerOrigin": "Touchez la carte à l'endroit du départ",
+  "pick.cancel": "Annuler",
+
   // Géolocalisation
   "geo.denied": "La localisation est refusée. Autorisez-la dans les réglages du navigateur pour calculer un trajet depuis votre position.",
   "geo.unavailable": "Position introuvable pour le moment. Vérifiez que le GPS est activé.",

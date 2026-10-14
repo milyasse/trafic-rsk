@@ -7,6 +7,7 @@ import { COVERAGE, inBBox, lineBBox, type LngLat } from "../lib/geo";
 import { isLive, REPORT_META, REPORT_TYPES, type Report } from "../lib/reports";
 import { displayLevel, TRAFFIC_COLORS } from "../lib/traffic";
 import { setFollowing } from "../services/navigation";
+import { applyPick } from "../services/routes";
 import { getState, setState, toast, tr, useStore } from "../store";
 
 const ROUTE_BLUE = "#1D5FA6";
@@ -159,6 +160,7 @@ export function MapView({ dark }: { dark: boolean }) {
   const showReports = useStore((s) => s.showReports);
   const nav = useStore((s) => s.nav);
   const mapCommand = useStore((s) => s.mapCommand);
+  const pickMode = useStore((s) => s.pickMode);
 
   const effectiveBasemap: Basemap = dark && basemap === "liberty" ? "dark" : basemap;
 
@@ -214,11 +216,18 @@ export function MapView({ dark }: { dark: boolean }) {
       if ((e as unknown as { originalEvent?: Event }).originalEvent) setFollowing(false);
     });
 
+    // Mode « choisir sur la carte » : un simple toucher choisit le point
+    map.on("click", (e) => {
+      if (!getState().pickMode) return;
+      void applyPick([e.lngLat.lng, e.lngLat.lat]);
+    });
     map.on("click", "report-points", (e: MapLayerMouseEvent) => {
+      if (getState().pickMode) return;
       const id = e.features?.[0]?.properties?.id as string | undefined;
       if (id) setState({ selectedReportId: id, pickedPoint: null });
     });
     map.on("click", "report-clusters", async (e: MapLayerMouseEvent) => {
+      if (getState().pickMode) return;
       const f = e.features?.[0];
       if (!f) return;
       const src = map.getSource("reports") as GeoJSONSource;
@@ -227,7 +236,7 @@ export function MapView({ dark }: { dark: boolean }) {
     });
     map.on("click", "route-alt", (e: MapLayerMouseEvent) => {
       const id = e.features?.[0]?.properties?.id as string | undefined;
-      if (id && !getState().nav) setState({ selectedRouteId: id });
+      if (id && !getState().nav && !getState().pickMode) setState({ selectedRouteId: id });
     });
     for (const layer of ["report-points", "report-clusters", "route-alt"]) {
       map.on("mouseenter", layer, () => { map.getCanvas().style.cursor = "pointer"; });
@@ -377,6 +386,11 @@ export function MapView({ dark }: { dark: boolean }) {
     if (!map) return;
     if (!nav) map.easeTo({ pitch: 0, bearing: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 600 });
   }, [nav == null]);
+
+  useEffect(() => {
+    const canvas = mapRef.current?.getCanvas();
+    if (canvas) canvas.style.cursor = pickMode ? "crosshair" : "";
+  }, [pickMode]);
 
   useEffect(() => {
     const map = mapRef.current;

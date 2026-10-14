@@ -4,10 +4,10 @@ import { LANGS } from "./i18n";
 import { supabase } from "./lib/supabase";
 import { loadUserData, startLiveData } from "./services/data";
 import { startWatch } from "./services/geolocation";
-import { computeRoutes } from "./services/routes";
+import { cancelPick, computeRoutes, startPick } from "./services/routes";
 import { focusMap, getState, setState, toast, tr, useStore, useT, type Panel } from "./store";
 import { AccountPanel } from "./components/AccountPanel";
-import { IconAlert, IconBriefcase, IconChevron, IconHome, IconLayers, IconList, IconLocate, IconRoute, IconUser } from "./components/Icons";
+import { IconAlert, IconBriefcase, IconChevron, IconHome, IconLayers, IconList, IconLocate, IconPin, IconRoute, IconUser } from "./components/Icons";
 import { IncidentsPanel } from "./components/IncidentsPanel";
 import { MapView } from "./components/MapView";
 import { NavigationHud } from "./components/NavigationHud";
@@ -67,6 +67,31 @@ function QuickPlaces() {
   );
 }
 
+function PickButton({ target }: { target: "destination" | "origin" }) {
+  const t = useT();
+  return (
+    <button type="button" onClick={() => startPick(target)}
+      className="accent flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[var(--accent)] font-bold">
+      <IconPin size={18} /> {t(target === "origin" ? "pick.origin" : "pick.destination")}
+    </button>
+  );
+}
+
+function PickBanner() {
+  const t = useT();
+  const mode = useStore((s) => s.pickMode);
+  if (!mode) return null;
+  return (
+    <div className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+10px)] z-40 flex justify-center lg:start-[416px]">
+      <div className="pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl bg-[var(--color-oudaya)] px-4 py-3 text-white shadow-xl" role="status">
+        <IconPin size={22} />
+        <span className="font-bold">{t(mode === "origin" ? "pick.bannerOrigin" : "pick.bannerDestination")}</span>
+        <button type="button" onClick={cancelPick} className="ms-auto rounded-lg bg-white/20 px-3 py-1.5 font-bold">{t("pick.cancel")}</button>
+      </div>
+    </div>
+  );
+}
+
 function PanelContent({ panel }: { panel: Panel }) {
   const destination = useStore((s) => s.destination);
   if (panel === "incidents") return <IncidentsPanel />;
@@ -74,6 +99,7 @@ function PanelContent({ panel }: { panel: Panel }) {
   return destination ? <RoutePanel /> : (
     <div className="flex flex-col gap-5">
       <QuickPlaces />
+      <PickButton target="destination" />
       <TrafficPanel />
     </div>
   );
@@ -112,6 +138,7 @@ function MainScreen({ dark }: { dark: boolean }) {
   const expanded = useStore((s) => s.sheetExpanded);
   const userPos = useStore((s) => s.userPos);
   const geoError = useStore((s) => s.geoError);
+  const pickMode = useStore((s) => s.pickMode);
 
   useEffect(() => {
     if (geoError) toast(tr(geoError), "error", undefined, 7000);
@@ -137,7 +164,7 @@ function MainScreen({ dark }: { dark: boolean }) {
       {nav ? <NavigationHud /> : (
         <>
           {/* Recherche (mobile : en haut ; ordinateur : dans le panneau) */}
-          <div className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+10px)] z-20 flex flex-col items-start gap-2 lg:hidden">
+          <div className={`absolute inset-x-3 top-[calc(env(safe-area-inset-top)+10px)] z-20 flex-col items-start gap-2 lg:hidden ${pickMode ? "hidden" : "flex"}`}>
             <SearchBox />
             <StatusPill />
           </div>
@@ -205,6 +232,7 @@ function MainScreen({ dark }: { dark: boolean }) {
         </button>
       )}
 
+      {!nav && <PickBanner />}
       {!nav && <ReportCard />}
       {!nav && <PickedCard />}
       <ReportSheet />

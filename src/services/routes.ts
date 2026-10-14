@@ -1,8 +1,9 @@
 // Calcul, annotation et rafraîchissement des itinéraires proposés.
 import { FUNCTIONS_URL, SUPABASE_KEY } from "../config";
-import type { LngLat } from "../lib/geo";
+import { COVERAGE, inBBox, type LngLat } from "../lib/geo";
+import { reverseGeocode } from "../lib/geocode";
 import { annotateRoutes, fetchRoutes, orderRoutes, RouteError, type AnnotatedRoute, type ProviderRoute } from "../lib/routing";
-import { getState, setState, subscribe, type Place } from "../store";
+import { getState, setState, subscribe, toast, tr, type Place } from "../store";
 import { waitForPosition } from "./geolocation";
 
 let controller: AbortController | null = null;
@@ -72,3 +73,32 @@ subscribe(() => {
     setState({ routes, selectedRouteId: routes.some((r) => r.id === selected) ? selected : routes[0]?.id ?? null });
   }, 1500);
 });
+
+/** Démarre le mode « choisir sur la carte ». */
+export function startPick(target: "destination" | "origin"): void {
+  setState({ pickMode: target, pickedPoint: null, selectedReportId: null, sheetExpanded: false });
+}
+
+export function cancelPick(): void {
+  setState({ pickMode: null });
+}
+
+/** Point touché sur la carte en mode sélection : devient la destination ou le départ. */
+export async function applyPick(p: LngLat): Promise<void> {
+  const target = getState().pickMode;
+  if (!target) return;
+  if (!inBBox(p, COVERAGE)) {
+    toast(tr("map.outOfCoverage"), "info");
+    return;
+  }
+  setState({ pickMode: null });
+  const fallback = `${p[1].toFixed(5)}, ${p[0].toFixed(5)}`;
+  const label = (await reverseGeocode(p, getState().lang)) ?? fallback;
+  if (target === "origin") {
+    setState({ origin: { label, lngLat: p } });
+    if (getState().destination) await computeRoutes();
+    else setState({ panel: "search", sheetExpanded: true });
+  } else {
+    await computeRoutes({ label, lngLat: p });
+  }
+}

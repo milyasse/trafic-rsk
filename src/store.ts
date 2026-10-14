@@ -84,6 +84,8 @@ export interface State {
   pickedPoint: LngLat | null;
   reportSheet: { at: LngLat | null; source: "position" | "center" | "picked" } | null;
   layerMenu: boolean;
+  /** Mode « choisir sur la carte » : le prochain toucher sur la carte définit ce point. */
+  pickMode: "destination" | "origin" | null;
   mapCommand: { id: number; center: LngLat; zoom?: number } | null;
   toasts: Toast[];
 }
@@ -151,6 +153,7 @@ let state: State = {
   pickedPoint: null,
   reportSheet: null,
   layerMenu: false,
+  pickMode: null,
   mapCommand: null,
   toasts: [],
 };

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { matchCities } from "../lib/cities";
 import { searchNominatim, searchPlaces, type Place } from "../lib/geocode";
-import { clearRoutes, computeRoutes } from "../services/routes";
+import { clearRoutes, computeRoutes, startPick } from "../services/routes";
 import { setState, useStore, useT } from "../store";
 import { IconBriefcase, IconClock, IconClose, IconHome, IconPin, IconSearch, IconStar } from "./Icons";
 
@@ -149,8 +149,17 @@ export function SearchBox({ target = "destination" }: { target?: "destination" |
         )}
       </div>
 
-      {open && (items.length > 0 || status !== "idle" || q.length === 0) && (
+      {open && (
         <div id={listId} role="listbox" className="surface absolute inset-x-0 top-[calc(100%+6px)] z-30 max-h-[60vh] overflow-auto rounded-2xl border hairline py-1 shadow-xl">
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { setOpen(false); inputRef.current?.blur(); startPick(target); }}
+            className="accent flex w-full items-center gap-3 border-b hairline px-4 py-3 text-start font-bold hover:bg-[var(--surface-2)]"
+          >
+            <IconPin size={18} />
+            {t(target === "origin" ? "pick.origin" : "pick.destination")}
+          </button>
           {items.map((item, i) => (
             <button
               key={item.id}

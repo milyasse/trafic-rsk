@@ -4,7 +4,7 @@ import { REPORT_META } from "../lib/reports";
 import type { AnnotatedRoute } from "../lib/routing";
 import { saveFavorite } from "../services/data";
 import { startNavigation } from "../services/navigation";
-import { clearRoutes, computeRoutes } from "../services/routes";
+import { clearRoutes, computeRoutes, startPick } from "../services/routes";
 import { setState, useStore, useT } from "../store";
 import { SearchBox } from "./SearchBox";
 
@@ -108,6 +108,10 @@ export function RoutePanel() {
       <div>
         <span className="muted mb-1 block text-sm">{t("route.from")}</span>
         <SearchBox target="origin" />
+        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm font-bold">
+          <button type="button" className="accent underline-offset-4 hover:underline" onClick={() => startPick("origin")}>{t("pick.origin")}</button>
+          <button type="button" className="accent underline-offset-4 hover:underline" onClick={() => startPick("destination")}>{t("pick.destination")}</button>
+        </div>
       </div>
 
       {loading && <p className="muted py-4" aria-live="polite">{t("route.computing")}</p>}

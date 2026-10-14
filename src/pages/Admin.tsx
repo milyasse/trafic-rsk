@@ -7,6 +7,7 @@ import { formatAge, formatDateTime } from "../lib/format";
 import { REPORT_META, type Report } from "../lib/reports";
 import { supabase } from "../lib/supabase";
 import { toast, useStore, useT } from "../store";
+import { AuthForm } from "../components/AccountPanel";
 
 type Json = number | boolean | string | Json[] | { [k: string]: Json };
 interface SettingRow { key: string; value: Json; description: string | null; updated_at: string }
@@ -157,11 +158,36 @@ export default function AdminPage({ dark }: { dark: boolean }) {
   }, [isAdmin, load]);
 
   if (!session || !isAdmin) {
+    const signedIn = !!session && !session.user.is_anonymous;
     return (
-      <main className="mx-auto max-w-lg p-6">
-        <h1 className="text-2xl font-bold">{t("account.admin")}</h1>
-        <p className="muted mt-2">Accès réservé aux administrateurs. Connectez-vous avec un compte administrateur depuis l'onglet « Compte ».</p>
-        <a href="#/" className="accent mt-4 inline-block font-bold">{t("common.back")}</a>
+      <main className="surface-2 min-h-full">
+        <div className="surface mx-auto max-w-md rounded-b-2xl p-6 lg:mt-10 lg:rounded-2xl">
+          <h1 className="text-2xl font-bold">{t("account.admin")}</h1>
+          {!signedIn && (
+            <>
+              <p className="muted mt-2">
+                Connectez-vous avec un compte administrateur. Première visite : choisissez « Créer un compte » avec l'adresse
+                e-mail déclarée comme administrateur ; le rôle est attribué automatiquement à l'inscription.
+              </p>
+              <div className="mt-4"><AuthForm /></div>
+            </>
+          )}
+          {signedIn && profile === null && <p className="muted mt-2">{t("common.loading")}</p>}
+          {signedIn && profile && !isAdmin && (
+            <>
+              <p className="mt-2">
+                Le compte <strong>{session.user.email}</strong> n'a pas le rôle administrateur.
+              </p>
+              <p className="muted mt-1 text-sm">
+                Seules les adresses déclarées dans la liste des administrateurs reçoivent ce rôle. Déconnectez-vous pour utiliser un autre compte.
+              </p>
+              <button type="button" className="mt-3 h-10 rounded-lg border hairline px-3 font-bold" onClick={() => void supabase.auth.signOut()}>
+                {t("account.signOut")}
+              </button>
+            </>
+          )}
+          <a href="#/" className="accent mt-5 inline-block font-bold">{t("common.back")}</a>
+        </div>
       </main>
     );
   }
