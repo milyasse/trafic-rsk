@@ -1,7 +1,7 @@
 // Calcul, annotation et rafraîchissement des itinéraires proposés.
 import { FUNCTIONS_URL, SUPABASE_KEY } from "../config";
 import { COVERAGE, inBBox, type LngLat } from "../lib/geo";
-import { reverseGeocode } from "../lib/geocode";
+import { formatCoords, nearestPoi, reverseGeocode, type NearbyPoi } from "../lib/geocode";
 import { annotateRoutes, fetchRoutes, orderRoutes, RouteError, type AnnotatedRoute, type ProviderRoute } from "../lib/routing";
 import { getState, setState, subscribe, toast, tr, type Place } from "../store";
 import { waitForPosition } from "./geolocation";
@@ -83,22 +83,45 @@ export function cancelPick(): void {
   setState({ pickMode: null });
 }
 
-/** Point touché sur la carte en mode sélection : devient la destination ou le départ. */
-export async function applyPick(p: LngLat): Promise<void> {
+/**
+ * Point touché sur la carte en mode sélection. On garde la coordonnée exacte (X,Y) et on propose
+ * en plus le lieu nommé (POI) le plus proche : celui affiché sur la carte s'il y en a un, sinon Photon.
+ */
+export async function applyPick(p: LngLat, renderedPoi: NearbyPoi | null = null): Promise<void> {
   const target = getState().pickMode;
   if (!target) return;
   if (!inBBox(p, COVERAGE)) {
     toast(tr("map.outOfCoverage"), "info");
     return;
   }
-  setState({ pickMode: null });
-  const fallback = `${p[1].toFixed(5)}, ${p[0].toFixed(5)}`;
-  const label = (await reverseGeocode(p, getState().lang)) ?? fallback;
-  if (target === "origin") {
-    setState({ origin: { label, lngLat: p } });
+  setState({ pickMode: null, pickChoice: { target, point: p, address: null, poi: renderedPoi, loading: true } });
+  const lang = getState().lang;
+  const [address, poi] = await Promise.all([
+    reverseGeocode(p, lang),
+    renderedPoi ? Promise.resolve(renderedPoi) : nearestPoi(p, lang),
+  ]);
+  const cur = getState().pickChoice;
+  if (!cur || cur.point !== p) return; // un autre point a été choisi entre-temps
+  setState({ pickChoice: { ...cur, address, poi, loading: false } });
+}
+
+/** Valide le choix : « exact » = coordonnées touchées, « poi » = position du lieu le plus proche. */
+export async function commitPick(choice: "exact" | "poi"): Promise<void> {
+  const c = getState().pickChoice;
+  if (!c) return;
+  const place: Place = choice === "poi" && c.poi
+    ? { label: c.poi.name, lngLat: c.poi.lngLat }
+    : { label: c.address ? `${formatCoords(c.point)} — ${c.address}` : formatCoords(c.point), lngLat: c.point };
+  setState({ pickChoice: null });
+  if (c.target === "origin") {
+    setState({ origin: place });
     if (getState().destination) await computeRoutes();
     else setState({ panel: "search", sheetExpanded: true });
   } else {
-    await computeRoutes({ label, lngLat: p });
+    await computeRoutes(place);
   }
+}
+
+export function cancelPickChoice(): void {
+  setState({ pickChoice: null });
 }

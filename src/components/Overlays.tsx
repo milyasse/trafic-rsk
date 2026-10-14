@@ -1,4 +1,4 @@
-import type { Basemap } from "../config";
+import { BASEMAPS } from "../config";
 import { availability } from "../lib/traffic";
 import { formatAge } from "../lib/format";
 import { savePreference } from "../services/data";
@@ -60,7 +60,7 @@ export function LayerMenu() {
   const showReports = useStore((s) => s.showReports);
   if (!open) return null;
   const close = () => setState({ layerMenu: false });
-  const maps: Basemap[] = ["liberty", "bright", "positron", "dark"];
+  const maps = BASEMAPS;
   const themes: ThemePref[] = ["auto", "light", "dark"];
   return (
     <div className="fixed inset-0 z-50" onClick={close}>
@@ -101,7 +101,7 @@ export function LayerMenu() {
             ))}
           </div>
         </fieldset>
-        <p className="muted mt-3 text-[11px]">© OpenStreetMap contributors · OpenFreeMap · OpenMapTiles</p>
+        <p className="muted mt-3 text-[11px]">© OpenStreetMap contributors · OpenFreeMap · OpenMapTiles{basemap === "satellite" || basemap === "hybrid" ? " · Imagerie © Esri, Maxar, Earthstar Geographics" : ""}</p>
       </div>
     </div>
   );

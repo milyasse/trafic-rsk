@@ -11,7 +11,7 @@ Application web (mobile et ordinateur) de navigation pour la région Rabat-Salé
 
 | Domaine | Ce qui est livré |
 |---|---|
-| Carte | MapLibre GL + tuiles vectorielles OpenStreetMap (OpenFreeMap), 4 fonds (standard, contrasté, épuré, nuit), mode clair/sombre, rotation/inclinaison, géolocalisation avec précision, appui long pour choisir un point |
+| Carte | MapLibre GL + tuiles vectorielles OpenStreetMap (OpenFreeMap), 6 fonds (standard, contrasté, épuré, nuit, satellite, satellite + routes), mode clair/sombre, rotation/inclinaison, géolocalisation avec précision, choix d'un point sur la carte par coordonnées exactes (lat, lng) ou lieu nommé (POI) le plus proche |
 | Recherche | Autocomplétion Photon (OSM) limitée à la région, villes en local, favoris et destinations récentes, repli Nominatim |
 | Itinéraires | Jusqu'à 3 itinéraires, durée, distance, heure d'arrivée, péage signalé / autoroute, incidents sur le trajet, itinéraire recommandé (pénalité incidents + retard mesuré) |
 | Navigation | Instructions étape par étape (FR/EN, AR partiel), guidage vocal, suivi GPS, recalcul hors trajet, alertes d'incidents devant soi, proposition d'itinéraire alternatif, écran maintenu allumé, annulation |
@@ -103,4 +103,4 @@ Voir [docs/EXPLOITATION.md](docs/EXPLOITATION.md#services-externes-et-coûts) : 
 
 ## Licences et attributions
 
-Données cartographiques © contributeurs OpenStreetMap (ODbL) · tuiles OpenFreeMap / OpenMapTiles · recherche Photon (komoot) · itinéraires OSRM ou openrouteservice (HeiGIT) · trafic TomTom (si activé). Les attributions sont affichées dans l'application.
+Données cartographiques © contributeurs OpenStreetMap (ODbL) · tuiles OpenFreeMap / OpenMapTiles · imagerie satellite © Esri, Maxar, Earthstar Geographics · recherche Photon (komoot) · itinéraires OSRM ou openrouteservice (HeiGIT) · trafic TomTom (si activé). Les attributions sont affichées dans l'application.

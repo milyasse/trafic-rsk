@@ -1,7 +1,7 @@
 // Recherche d'adresses : Photon (OpenStreetMap, sans clé, autocomplétion) avec repli sur
 // Nominatim pour une recherche validée. Usage raisonnable : requêtes regroupées (debounce),
 // limitées à la région, mises en cache côté navigateur.
-import { COVERAGE, type LngLat } from "./geo";
+import { COVERAGE, haversine, type LngLat } from "./geo";
 
 export interface Place {
   id: string;
@@ -106,4 +106,45 @@ export async function reverseGeocode(p: LngLat, lang: string, signal?: AbortSign
   } catch {
     return null;
   }
+}
+
+export interface NearbyPoi {
+  name: string;
+  lngLat: LngLat;
+  distance: number;
+  kind: string;
+}
+
+/** Catégories OSM considérées comme des lieux (POI) nommés. */
+const POI_KEYS = new Set(["amenity", "shop", "tourism", "leisure", "office", "healthcare", "public_transport", "railway", "aeroway", "historic", "craft", "man_made", "building", "sport"]);
+
+/** Choisit le POI nommé le plus proche d'un point parmi des candidats, dans un rayon donné. */
+export function pickNearestPoi(p: LngLat, candidates: { name?: string; lngLat: LngLat; kind?: string }[], maxMeters = 250): NearbyPoi | null {
+  let best: NearbyPoi | null = null;
+  for (const c of candidates) {
+    if (!c.name) continue;
+    const d = haversine(p, c.lngLat);
+    if (d <= maxMeters && (!best || d < best.distance)) best = { name: c.name, lngLat: c.lngLat, distance: d, kind: c.kind ?? "poi" };
+  }
+  return best;
+}
+
+/** POI nommé le plus proche via Photon (repli quand la carte n'affiche pas de POI, ex. vue satellite). */
+export async function nearestPoi(p: LngLat, lang: string, signal?: AbortSignal): Promise<NearbyPoi | null> {
+  try {
+    const res = await fetch(`https://photon.komoot.io/reverse?lon=${p[0]}&lat=${p[1]}&limit=15&radius=0.25&lang=${lang === "en" ? "en" : "fr"}`, { signal });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const candidates = ((data.features ?? []) as PhotonFeature[])
+      .filter((f) => POI_KEYS.has(f.properties.osm_key) && f.properties.name)
+      .map((f) => ({ name: f.properties.name as string, lngLat: f.geometry.coordinates, kind: (f.properties.osm_value as string) ?? "poi" }));
+    return pickNearestPoi(p, candidates);
+  } catch {
+    return null;
+  }
+}
+
+/** Libellé d'un point exact : coordonnées en degrés décimaux (lat, lng), 5 décimales ≈ 1 m. */
+export function formatCoords(p: LngLat): string {
+  return `${p[1].toFixed(5)}, ${p[0].toFixed(5)}`;
 }

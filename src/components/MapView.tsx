@@ -1,13 +1,15 @@
 import { useEffect, useRef } from "react";
-import maplibregl, { type GeoJSONSource, type Map as MLMap, type MapLayerMouseEvent } from "maplibre-gl";
+import maplibregl, { type GeoJSONSource, type Map as MLMap, type MapGeoJSONFeature, type MapLayerMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Feature, FeatureCollection, Point } from "geojson";
-import { INITIAL_VIEW, MAP_STYLES, MAX_BOUNDS, type Basemap } from "../config";
+import { INITIAL_VIEW, MAX_BOUNDS, type Basemap } from "../config";
+import { initialStyle, resolveStyle } from "../lib/basemaps";
 import { COVERAGE, inBBox, lineBBox, type LngLat } from "../lib/geo";
 import { isLive, REPORT_META, REPORT_TYPES, type Report } from "../lib/reports";
 import { displayLevel, TRAFFIC_COLORS } from "../lib/traffic";
 import { setFollowing } from "../services/navigation";
 import { applyPick } from "../services/routes";
+import { pickNearestPoi, type NearbyPoi } from "../lib/geocode";
 import { getState, setState, toast, tr, useStore } from "../store";
 
 const ROUTE_BLUE = "#1D5FA6";
@@ -119,6 +121,25 @@ function setupLayers(map: MLMap) {
   }
 }
 
+/** POI nommé affiché sur la carte le plus proche du point touché (couche « poi » OpenMapTiles). */
+function renderedPoiNear(map: MLMap, px: { x: number; y: number }, p: LngLat): NearbyPoi | null {
+  const r = 48;
+  let features: MapGeoJSONFeature[] = [];
+  try {
+    features = map.queryRenderedFeatures([[px.x - r, px.y - r], [px.x + r, px.y + r]]);
+  } catch {
+    return null;
+  }
+  const candidates = features
+    .filter((f) => f.layer.type === "symbol" && f.sourceLayer === "poi" && f.geometry.type === "Point")
+    .map((f) => ({
+      name: (f.properties?.["name:fr"] ?? f.properties?.name ?? f.properties?.["name:latin"]) as string | undefined,
+      lngLat: (f.geometry as Point).coordinates as LngLat,
+      kind: String(f.properties?.subclass ?? f.properties?.class ?? "poi"),
+    }));
+  return pickNearestPoi(p, candidates, 250);
+}
+
 function circlePolygon(center: LngLat, radiusM: number): Feature {
   const pts: LngLat[] = [];
   const latR = radiusM / 111_320;
@@ -145,6 +166,8 @@ export function MapView({ dark }: { dark: boolean }) {
   const destMarker = useRef<maplibregl.Marker | null>(null);
   const pickedMarker = useRef<maplibregl.Marker | null>(null);
   const lastFitKey = useRef("");
+  /** Fond réellement appliqué (évite un rechargement inutile, et force la mise à niveau hybride). */
+  const appliedBasemap = useRef<Basemap | null>(null);
 
   const basemap = useStore((s) => s.basemap);
   const reports = useStore((s) => s.reports);
@@ -161,6 +184,8 @@ export function MapView({ dark }: { dark: boolean }) {
   const nav = useStore((s) => s.nav);
   const mapCommand = useStore((s) => s.mapCommand);
   const pickMode = useStore((s) => s.pickMode);
+  const pickChoice = useStore((s) => s.pickChoice);
+  const choiceMarkers = useRef<maplibregl.Marker[]>([]);
 
   const effectiveBasemap: Basemap = dark && basemap === "liberty" ? "dark" : basemap;
 
@@ -169,7 +194,7 @@ export function MapView({ dark }: { dark: boolean }) {
     if (!container.current) return;
     const map = new maplibregl.Map({
       container: container.current,
-      style: MAP_STYLES[effectiveBasemap],
+      style: initialStyle(effectiveBasemap),
       center: INITIAL_VIEW.center,
       zoom: INITIAL_VIEW.zoom,
       maxBounds: MAX_BOUNDS,
@@ -179,6 +204,7 @@ export function MapView({ dark }: { dark: boolean }) {
       cooperativeGestures: false,
     });
     mapRef.current = map;
+    appliedBasemap.current = effectiveBasemap === "hybrid" ? "satellite" : effectiveBasemap;
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true, showZoom: false }), "top-right");
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
@@ -219,7 +245,8 @@ export function MapView({ dark }: { dark: boolean }) {
     // Mode « choisir sur la carte » : un simple toucher choisit le point
     map.on("click", (e) => {
       if (!getState().pickMode) return;
-      void applyPick([e.lngLat.lng, e.lngLat.lat]);
+      const p: LngLat = [e.lngLat.lng, e.lngLat.lat];
+      void applyPick(p, renderedPoiNear(map, e.point, p));
     });
     map.on("click", "report-points", (e: MapLayerMouseEvent) => {
       if (getState().pickMode) return;
@@ -254,9 +281,15 @@ export function MapView({ dark }: { dark: boolean }) {
   // ------------------------------------------------------------ fond de carte
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    ready.current = false;
-    map.setStyle(MAP_STYLES[effectiveBasemap]);
+    if (!map || appliedBasemap.current === effectiveBasemap) return;
+    let cancelled = false;
+    void resolveStyle(effectiveBasemap).then((style) => {
+      if (cancelled) return;
+      ready.current = false;
+      appliedBasemap.current = effectiveBasemap;
+      map.setStyle(style, { diff: false });
+    });
+    return () => { cancelled = true; };
   }, [effectiveBasemap]);
 
   // ------------------------------------------------------------ données → sources
@@ -386,6 +419,17 @@ export function MapView({ dark }: { dark: boolean }) {
     if (!map) return;
     if (!nav) map.easeTo({ pitch: 0, bearing: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 600 });
   }, [nav == null]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    choiceMarkers.current.forEach((m) => m.remove());
+    choiceMarkers.current = [];
+    if (!map || !pickChoice) return;
+    choiceMarkers.current.push(new maplibregl.Marker({ element: makeEl("picked-dot") }).setLngLat(pickChoice.point).addTo(map));
+    if (pickChoice.poi) {
+      choiceMarkers.current.push(new maplibregl.Marker({ element: makeEl("poi-ring") }).setLngLat(pickChoice.poi.lngLat).addTo(map));
+    }
+  }, [pickChoice]);
 
   useEffect(() => {
     const canvas = mapRef.current?.getCanvas();

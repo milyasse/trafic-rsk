@@ -86,6 +86,14 @@ export interface State {
   layerMenu: boolean;
   /** Mode « choisir sur la carte » : le prochain toucher sur la carte définit ce point. */
   pickMode: "destination" | "origin" | null;
+  /** Point touché en mode sélection, en attente du choix : point exact (X,Y) ou POI le plus proche. */
+  pickChoice: {
+    target: "destination" | "origin";
+    point: LngLat;
+    address: string | null;
+    poi: { name: string; lngLat: LngLat; distance: number; kind: string } | null;
+    loading: boolean;
+  } | null;
   mapCommand: { id: number; center: LngLat; zoom?: number } | null;
   toasts: Toast[];
 }
@@ -154,6 +162,7 @@ let state: State = {
   reportSheet: null,
   layerMenu: false,
   pickMode: null,
+  pickChoice: null,
   mapCommand: null,
   toasts: [],
 };

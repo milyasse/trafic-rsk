@@ -12,7 +12,7 @@ import { IncidentsPanel } from "./components/IncidentsPanel";
 import { MapView } from "./components/MapView";
 import { NavigationHud } from "./components/NavigationHud";
 import { LayerMenu, StatusPill, Toasts } from "./components/Overlays";
-import { PickedCard, ReportCard } from "./components/ReportCard";
+import { PickChoiceCard, PickedCard, ReportCard } from "./components/ReportCard";
 import { ReportSheet } from "./components/ReportSheet";
 import { RoutePanel } from "./components/RoutePanel";
 import { SearchBox } from "./components/SearchBox";
@@ -233,6 +233,7 @@ function MainScreen({ dark }: { dark: boolean }) {
       )}
 
       {!nav && <PickBanner />}
+      {!nav && <PickChoiceCard />}
       {!nav && <ReportCard />}
       {!nav && <PickedCard />}
       <ReportSheet />

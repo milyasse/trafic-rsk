@@ -10,7 +10,15 @@ export const MAP_STYLES = {
   positron: "https://tiles.openfreemap.org/styles/positron",
   dark: "https://tiles.openfreemap.org/styles/dark",
 } as const;
-export type Basemap = keyof typeof MAP_STYLES;
+export type VectorBasemap = keyof typeof MAP_STYLES;
+/** Fonds disponibles : vectoriels OpenFreeMap + imagerie satellite (seule ou avec routes et noms). */
+export type Basemap = VectorBasemap | "satellite" | "hybrid";
+export const BASEMAPS: Basemap[] = ["liberty", "bright", "positron", "dark", "satellite", "hybrid"];
+
+/** Imagerie satellite Esri World Imagery (attribution obligatoire, affichée sur la carte). */
+export const SATELLITE_TILES = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+export const SATELLITE_ATTRIBUTION =
+  "Imagerie © Esri, Maxar, Earthstar Geographics et la communauté des utilisateurs SIG";
 
 export const INITIAL_VIEW = { center: [-6.83, 34.0] as [number, number], zoom: 10.5 };
 /** Limites de navigation de la carte : région élargie (extension future au reste du Maroc possible). */
