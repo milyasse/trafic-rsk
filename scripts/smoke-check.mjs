@@ -90,6 +90,10 @@ let failed = 0;
 for (const r of results) {
   if (!r.ok) failed++;
   console.log(`${r.ok ? "✅" : "❌"} ${r.name} (${r.ms} ms) — ${r.detail}`);
+  if (process.env.GITHUB_ACTIONS) {
+    const msg = `${r.name} (${r.ms} ms) — ${r.detail}`.replace(/\r?\n/g, " ");
+    console.log(`::${r.ok ? "notice" : "error"} title=Smoke test::${msg}`);
+  }
 }
 if (process.env.GITHUB_STEP_SUMMARY) {
   const { appendFileSync } = await import("node:fs");

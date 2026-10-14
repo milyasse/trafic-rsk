@@ -14,14 +14,16 @@ const opts = { auth: { persistSession: false, autoRefreshToken: false } };
 const userA = createClient(URL, KEY, opts);
 const userB = createClient(URL, KEY, opts);
 
-const fail = (msg) => { console.error(`❌ ${msg}`); process.exit(1); };
+const gh = (level, msg) => { if (process.env.GITHUB_ACTIONS) console.log(`::${level} title=Temps réel::${msg}`); };
+const fail = (msg) => { console.error(`❌ ${msg}`); gh("error", msg); process.exit(1); };
+const ok = (msg) => { console.log(`✅ ${msg}`); gh("notice", msg); };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const a = await userA.auth.signInAnonymously();
 if (a.error) fail(`Utilisateur A : ${a.error.message} (activez les connexions anonymes)`);
 const b = await userB.auth.signInAnonymously();
 if (b.error) fail(`Utilisateur B : ${b.error.message}`);
-console.log("✅ Deux sessions anonymes distinctes");
+ok("Deux sessions anonymes distinctes");
 
 const received = [];
 const channel = userB.channel("realtime-check")
@@ -30,7 +32,7 @@ await new Promise((resolve, reject) => {
   const t = setTimeout(() => reject(new Error("abonnement trop long")), 15000);
   channel.subscribe((s) => { if (s === "SUBSCRIBED") { clearTimeout(t); resolve(); } });
 }).catch((e) => fail(e.message));
-console.log("✅ B est abonné au canal temps réel");
+ok("B est abonné au canal temps réel");
 
 // Point de test : parking proche de la gare de Rabat-Agdal, avec un léger décalage aléatoire
 const lat = 33.9935 + Math.random() * 0.002;
@@ -41,7 +43,7 @@ const { data: created, error: cErr } = await userA.rpc("create_report", {
 });
 if (cErr) fail(`Création : ${cErr.message}`);
 const id = created.id;
-console.log(`✅ A a créé le signalement ${id}${created.merged ? " (fusionné)" : ""}`);
+ok(`A a créé le signalement ${id}${created.merged ? " (fusionné)" : ""}`);
 
 let insert = null;
 for (let i = 0; i < 100 && !insert; i++) {
@@ -49,9 +51,9 @@ for (let i = 0; i < 100 && !insert; i++) {
   if (!insert) await wait(100);
 }
 if (!insert) fail("B n'a pas reçu le signalement en 10 s");
-console.log(`✅ B a reçu l'événement ${insert.eventType} en ${Date.now() - t0} ms`);
+ok(`B a reçu l'événement ${insert.eventType} en ${Date.now() - t0} ms`);
 if ("user_id" in (insert.new ?? {})) fail("L'identité de l'auteur est présente dans l'événement !");
-console.log("✅ Aucune information sur l'auteur dans l'événement");
+ok("Aucune information sur l'auteur dans l'événement");
 
 const t1 = Date.now();
 const { error: vErr } = await userA.rpc("vote_report", { p_report_id: id, p_vote: "gone" });
@@ -62,11 +64,11 @@ for (let i = 0; i < 100 && !update; i++) {
   if (!update) await wait(100);
 }
 if (!update) fail("B n'a pas reçu la résolution en 10 s");
-console.log(`✅ B a reçu la résolution en ${Date.now() - t1} ms`);
+ok(`B a reçu la résolution en ${Date.now() - t1} ms`);
 
 const { error: selfConfirm } = await userA.rpc("vote_report", { p_report_id: id, p_vote: "confirm" });
 if (!selfConfirm) fail("Un signalement résolu a pu être reconfirmé");
-console.log(`✅ Vote refusé sur un signalement terminé (${selfConfirm.message})`);
+ok(`Vote refusé sur un signalement terminé (${selfConfirm.message})`);
 
 await userB.removeChannel(channel);
 await userA.auth.signOut();
