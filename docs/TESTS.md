@@ -30,7 +30,13 @@
 | Conseiller de sécurité Supabase | ✅ aucune table sans RLS ; 6 avertissements attendus : fonctions `SECURITY DEFINER` exposées volontairement (elles vérifient l'utilisateur et valident les entrées) |
 | Edge Function `route`, Rabat → Kénitra | ✅ 2 itinéraires (47,0 km / 40 min et 53,3 km / 44 min), instructions avec noms de rues FR/AR |
 | Edge Function `traffic` sans clé | ✅ `no_provider` → statut « indisponible » |
-| Vérification après déploiement et temps réel | résultats dans l'onglet *Actions* du dépôt (résumé du job « Vérification après déploiement ») |
+| Page publique (GitHub Pages) | ✅ HTTP 200, bundle chargé |
+| Itinéraires réels via la fonction déployée | ✅ Rabat → Kénitra 47,0 km / 40 min (2 itinéraires) · Salé → Rabat-Agdal 10,2 km / 12 min · Témara → Rabat 14,1 km / 16 min (2) · Rabat → Skhirat 30,7 km / 28 min (2) — 1,5 à 3,2 s par calcul |
+| Coordonnées hors Maroc | ✅ refusées (HTTP 400) |
+| RLS en production | ✅ lecture publique des signalements, écriture directe refusée (401), votes/auteurs inaccessibles (401) |
+| Temps réel entre deux utilisateurs (sessions anonymes distinctes) | ✅ signalement reçu par l'autre utilisateur en 1,2 s, résolution reçue en 0,6 s, aucune donnée d'auteur dans l'événement, vote refusé sur un incident terminé |
+| Parcours dans l'interface (navigateur) | ✅ carte affichée (Rabat, Salé, Témara, A1/A5, RN1/RN6), recherche « Gare de Kenitra » → résultats OSM, départ « Gare Rabat Ville » saisi → 2 itinéraires (41 min / 47 km recommandé, 44 min / 51 km), mention « sans trafic en direct », état « En direct · Trafic en temps réel indisponible » |
+| Correctifs issus de ces vérifications | hauteur de la carte forcée (style MapLibre prioritaire), ajout du champ « Départ » et du bouton « Partir d'ici » pour les appareils sans GPS, test temps réel rendu indépendant des signalements existants |
 
 ## Procédure manuelle : un signalement apparaît chez un autre utilisateur
 
