@@ -1,0 +1,12 @@
+{
+  "name": "Trafic RSK — Rabat-Salé-Kénitra",
+  "short_name": "Trafic RSK",
+  "description": "Carte, trafic et itinéraires pour la région Rabat-Salé-Kénitra.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F3EFE6",
+  "theme_color": "#1D5FA6",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

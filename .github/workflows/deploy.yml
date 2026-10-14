@@ -1,0 +1,83 @@
+name: Tests et déploiement
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Valeurs PUBLIQUES (protégées par RLS), définies dans Settings > Secrets and variables > Actions > Variables
+  VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+  VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+
+jobs:
+  test:
+    name: Vérification des types, tests unitaires, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package.json
+      - name: Installer les dépendances
+        run: npm install --no-audit --no-fund
+      - name: Vérifier les types
+        run: npm run typecheck
+      - name: Tests unitaires
+        run: npm test
+        env:
+          TZ: Africa/Casablanca
+      - name: Build (GitHub Pages)
+        run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+      - name: Préparer l'artefact Pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        with:
+          path: dist
+
+  deploy:
+    name: Publication sur GitHub Pages
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  verify:
+    name: Vérification après déploiement
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund @supabase/supabase-js@2
+      - name: Attendre la propagation de Pages
+        run: sleep 20
+      - name: Page, itinéraires (Rabat, Salé, Témara, Kénitra, Skhirat), trafic, RLS
+        run: node scripts/smoke-check.mjs
+        env:
+          APP_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+      - name: Temps réel entre deux utilisateurs
+        run: node scripts/realtime-check.mjs

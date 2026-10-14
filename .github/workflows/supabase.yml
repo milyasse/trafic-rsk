@@ -1,0 +1,43 @@
+name: Déployer le backend Supabase
+
+# Déclenchement manuel : applique les migrations et redéploie les Edge Functions.
+# Secrets requis (Settings > Secrets and variables > Actions > Secrets) :
+#   SUPABASE_ACCESS_TOKEN  — jeton personnel (supabase.com > Account > Access Tokens)
+#   SUPABASE_DB_PASSWORD   — mot de passe de la base
+# Variable requise : SUPABASE_PROJECT_REF (ex. mtteblrlcmlunjtlsarm)
+
+on:
+  workflow_dispatch:
+    inputs:
+      migrations:
+        description: "Appliquer les migrations SQL"
+        type: boolean
+        default: false
+      functions:
+        description: "Redéployer les Edge Functions"
+        type: boolean
+        default: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Lier le projet
+        run: supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+      - name: Migrations
+        if: inputs.migrations
+        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+      - name: Edge Functions
+        if: inputs.functions
+        run: |
+          supabase functions deploy route --no-verify-jwt --project-ref "$PROJECT_REF"
+          supabase functions deploy traffic --no-verify-jwt --project-ref "$PROJECT_REF"
+          supabase functions deploy delete-account --no-verify-jwt --project-ref "$PROJECT_REF"

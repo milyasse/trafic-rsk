@@ -1,0 +1,24 @@
+# Configuration Supabase CLI (développement local et déploiement des fonctions)
+project_id = "trafic-rsk"
+
+[api]
+schemas = ["public"]
+
+[auth]
+site_url = "https://milyasse.github.io/trafic-rsk/"
+additional_redirect_urls = ["http://localhost:5173"]
+enable_anonymous_sign_ins = true
+
+[auth.email]
+enable_confirmations = false
+
+# Les fonctions vérifient elles-mêmes l'appelant (clés publishable non-JWT) :
+# limitation de débit par IP, validation des entrées, jeton utilisateur pour delete-account.
+[functions.route]
+verify_jwt = false
+
+[functions.traffic]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false
