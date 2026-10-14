@@ -2,10 +2,11 @@
 // Avec un compte : synchronisés ; sans compte : gardés sur cet appareil.
 import { useEffect, useRef, useState } from "react";
 import { formatDistance } from "../lib/format";
+import { reverseGeocode } from "../lib/geocode";
 import { haversine, type LngLat } from "../lib/geo";
 import { deleteFavorite, hasAccount, renameFavorite, saveFavorite } from "../services/data";
 import { computeRoutes, setPendingFavoriteKind, startPick } from "../services/routes";
-import { setState, useStore, useT, type Favorite } from "../store";
+import { getState, setState, useStore, useT, type Favorite } from "../store";
 import { useBottomInset } from "./BottomSheet";
 import { IconBriefcase, IconClose, IconHome, IconPin, IconSide, IconStar } from "./Icons";
 
@@ -128,9 +129,9 @@ export function FavoritesSection() {
             <ul className="-mx-2 flex flex-col">
               {others.map((f) => <FavoriteRow key={f.id} f={f} editing={false} />)}
             </ul>
-          ) : (
+          ) : favorites.length === 0 ? (
             <p className="muted text-sm">{t("favorites.empty")}</p>
-          )}
+          ) : null}
           <button type="button" onClick={() => { setPendingFavoriteKind("other"); startPick("favorite"); }}
             className="accent flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[var(--accent)] font-bold">
             <IconPin size={18} /> {t("favorites.addOnMap")}
@@ -168,13 +169,24 @@ export function FavoriteSheet() {
   const ref = useRef<HTMLFormElement>(null);
   const [name, setName] = useState("");
   const [kind, setKind] = useState<Favorite["kind"]>("other");
+  const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
   useBottomInset(ref, Boolean(draft));
 
   useEffect(() => {
-    if (!draft) return;
+    if (!draft) return undefined;
     setName(draft.label.slice(0, 80));
+    setAddress(draft.address);
     setKind(draft.kind ?? "other");
+    // Adresse pas encore connue (seulement des coordonnées) : on la cherche et on propose un nom.
+    if (!/^-?\d+\.\d+, -?\d+\.\d+$/.test(draft.label.trim())) return undefined;
+    const ctrl = new AbortController();
+    void reverseGeocode(draft.lngLat, getState().lang, ctrl.signal).then((a) => {
+      if (!a || ctrl.signal.aborted) return;
+      setAddress(a);
+      setName((cur) => (cur === draft.label.slice(0, 80) ? a.split(",")[0].slice(0, 80) : cur));
+    });
+    return () => ctrl.abort();
   }, [draft]);
   useEffect(() => {
     if (!draft) return;
@@ -197,9 +209,10 @@ export function FavoriteSheet() {
       onSubmit={async (e) => {
         e.preventDefault();
         setBusy(true);
-        const ok = await saveFavorite(kind, name, draft.address, draft.lngLat);
+        const ok = await saveFavorite(kind, name, address || draft.address, draft.lngLat);
         setBusy(false);
-        if (ok) close();
+        // Montrer le favori ajouté dans « Mes favoris »
+        if (ok) setState((s) => ({ favoriteDraft: null, panel: "search", sheet: s.sheet === "peek" ? "half" : s.sheet }));
       }}
     >
       <span className="mx-auto block h-1.5 w-11 rounded-full bg-[var(--line)] lg:hidden" aria-hidden />
@@ -207,7 +220,7 @@ export function FavoriteSheet() {
         <h2 id="fav-sheet-title" className="panel-title">{t("favorites.addTitle")}</h2>
         <button type="button" onClick={close} aria-label={t("common.close")} className="icon-btn muted"><IconClose size={22} /></button>
       </div>
-      <p className="muted -mt-2 truncate text-sm">{draft.address}</p>
+      <p className="muted -mt-2 truncate text-sm">{address}</p>
 
       <label>
         <span className="field-label">{t("account.favoriteLabel")}</span>

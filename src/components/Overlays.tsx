@@ -62,11 +62,11 @@ export function TrafficLegend({ compact = false }: { compact?: boolean }) {
   if (!show || availability(status, now, stale) !== "live" || !segments.length) return null;
   const levels: TrafficLevel[] = ["fluid", "slow", "heavy", "jam"];
   return (
-    <div className={`${compact ? "" : "surface shadow-float rounded-full px-3 py-1.5"} inline-flex max-w-full flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-bold`}
+    <div className={`${compact ? "" : "surface shadow-float rounded-full px-3 py-1.5"} inline-flex max-w-full flex-nowrap items-center gap-x-2.5 overflow-x-auto whitespace-nowrap text-[12px] font-bold`}
       role="note" aria-label={t("traffic.legend")}>
       {levels.map((l) => (
         <span key={l} className="inline-flex items-center gap-1.5">
-          <span aria-hidden className="inline-block h-1.5 w-5 rounded-full" style={{ background: TRAFFIC_COLORS[l] }} />
+          <span aria-hidden className="inline-block h-1.5 w-4 shrink-0 rounded-full" style={{ background: TRAFFIC_COLORS[l] }} />
           {t(`traffic.level.${l}`)}
         </span>
       ))}
