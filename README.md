@@ -5,7 +5,7 @@ Application web (mobile et ordinateur) de navigation pour la région Rabat-Salé
 - **Application** : https://milyasse.github.io/trafic-rsk/
 - **Administration** : https://milyasse.github.io/trafic-rsk/#/admin (comptes administrateurs uniquement)
 
-> **Trafic en direct** : aucun fournisseur de trafic gratuit et illimité ne couvre le Maroc. L'application est prête pour TomTom (couverture flux + incidents au Maroc, 20 000 requêtes gratuites par mois). Tant qu'aucune clé n'est configurée, elle affiche clairement « Trafic en temps réel indisponible » et n'affiche **jamais** de couleurs de trafic inventées. Les signalements des usagers restent actifs et sont distingués des données du fournisseur.
+> **Trafic en direct** : fourni par TomTom (clé configurée côté serveur depuis le 14/10/2026) : 32 axes mesurés, incidents officiels sur toute la région et itinéraires calculés avec le trafic du moment, dans les quotas gratuits. Sans clé ou si le fournisseur ne répond pas, l'application affiche clairement « Trafic en temps réel indisponible » et n'affiche **jamais** de couleurs de trafic inventées. Les signalements des usagers restent actifs et sont distingués des données du fournisseur.
 
 ## Fonctionnalités
 
@@ -13,9 +13,10 @@ Application web (mobile et ordinateur) de navigation pour la région Rabat-Salé
 |---|---|
 | Carte | MapLibre GL + tuiles vectorielles OpenStreetMap (OpenFreeMap), 6 fonds (standard, contrasté, épuré, nuit, satellite, satellite + routes), mode clair/sombre, rotation/inclinaison, géolocalisation avec précision, choix d'un point sur la carte par coordonnées exactes (lat, lng) ou lieu nommé (POI) le plus proche |
 | Recherche | Autocomplétion Photon (OSM) limitée à la région, villes en local, favoris et destinations récentes, repli Nominatim |
-| Itinéraires | Jusqu'à 3 itinéraires, durée, distance, heure d'arrivée, péage signalé / autoroute, incidents sur le trajet, itinéraire recommandé (pénalité incidents + retard mesuré) |
-| Navigation | Instructions étape par étape (FR/EN, AR partiel), guidage vocal, suivi GPS, recalcul hors trajet, alertes d'incidents devant soi, proposition d'itinéraire alternatif, écran maintenu allumé, annulation |
-| Trafic | Couleurs fluide / ralenti / dense / embouteillage / inconnu, âge des données, axes encombrés, mesures périmées affichées en gris |
+| Itinéraires | Jusqu'à 3 itinéraires calculés **avec le trafic en temps réel** (TomTom Routing) : durée réaliste, retard dû au trafic, tronçons ralentis colorés sur le tracé, péages ; incidents sur le trajet ; itinéraire recommandé. Repli automatique openrouteservice / OSRM (sans trafic, signalé) |
+| Navigation | Instructions étape par étape (FR/EN, AR partiel), guidage vocal, suivi GPS, **limitation de vitesse et vitesse actuelle**, recalcul hors trajet, alertes d'incidents devant soi (usagers + TomTom), proposition d'itinéraire alternatif, écran maintenu allumé |
+| Trafic | 32 axes mesurés (TomTom Traffic Flow) colorés fluide / ralenti / dense / embouteillage, légende, détail au toucher, âge des données, mesures périmées en gris ; **incidents officiels TomTom** (accidents, routes fermées, travaux, bouchons, intempéries) avec tracé exact, retard, longueur, horaires |
+| Favoris | Espace « Mes favoris » : Domicile, Travail et lieux, ajout en un toucher (étoile, carte), départ ou destination depuis un favori ; sans compte sur l'appareil, transférés au compte à la connexion |
 | Signalements | 10 types, gravité, description, fusion automatique des doublons (150 m), confirmations, « n'y est plus », signalement d'abus, expiration automatique, limitation anti-spam, identité jamais exposée |
 | Temps réel | Supabase Realtime (WebSocket), reconnexion automatique avec resynchronisation, état de connexion visible |
 | Comptes | Usage libre sans compte, session invitée anonyme pour signaler, compte e-mail, favoris (domicile, travail…), préférences, historique avec consentement, suppression du compte |
@@ -29,8 +30,10 @@ Navigateur (React + MapLibre, GitHub Pages)
    │  recherche ──────────► Photon / Nominatim (OSM)
    │  REST + Realtime ────► Supabase (PostgreSQL + PostGIS, RLS, Auth)
    └─ fonctions ──────────► Supabase Edge Functions
-                               route ─────► openrouteservice (si clé) │ OSRM public (repli)
-                               traffic ───► TomTom Traffic Flow (si clé), cache + budget
+                               route ─────► TomTom Routing avec trafic (si clé, plafond/jour)
+                                            │ openrouteservice (si clé) │ OSRM public (repli)
+                               traffic ───► TomTom Traffic Flow + Traffic Incidents (si clé),
+                                            verrou, fréquence horaire et budget journalier
                                delete-account
 ```
 
@@ -72,7 +75,8 @@ Scripts :
 
 | Secret | Effet | Obligatoire |
 |---|---|---|
-| `TOMTOM_API_KEY` | active le trafic en direct | non |
+| `TOMTOM_API_KEY` | active le trafic en direct, les incidents officiels et les itinéraires avec trafic | non (configuré) |
+| `TOMTOM_ROUTING_DAILY` | plafond quotidien d'itinéraires TomTom (défaut 600 ; au-delà : ORS/OSRM) | non |
 | `ORS_API_KEY` | itinéraires openrouteservice au lieu du serveur OSRM public | non (recommandé en production) |
 | `ALLOWED_ORIGINS` | origines autorisées (CORS) | non (défaut : GitHub Pages + localhost) |
 | `TRAFFIC_PROVIDER` | `tomtom` (défaut) | non |
