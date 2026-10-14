@@ -384,7 +384,7 @@ export function MapView({ dark }: { dark: boolean }) {
     map.flyTo({ center: mapCommand.center, zoom: mapCommand.zoom ?? Math.max(map.getZoom(), 15), duration: 900 });
   }, [mapCommand]);
 
-  return <div ref={container} className="absolute inset-0" role="application" aria-label="Carte" />;
+  return <div ref={container} style={{ position: "absolute", inset: 0 }} role="application" aria-label="Carte" />;
 }
 
 /** Centre courant de la carte (pour « signaler au centre de la carte »). */
