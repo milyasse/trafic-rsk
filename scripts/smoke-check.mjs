@@ -47,8 +47,13 @@ for (const [name, coordinates] of Object.entries(trips)) {
     assert(data.routes?.length >= 1, "aucun itinéraire");
     const r = data.routes[0];
     assert(r.steps.length > 2 && r.geometry.coordinates.length > 10, "itinéraire incomplet");
-    assert(data.traffic_aware === false, "traffic_aware inattendu");
-    return `${data.provider} · ${data.routes.length} itinéraire(s) · ${(r.distance / 1000).toFixed(1)} km · ${Math.round(r.duration / 60)} min`;
+    // Seul TomTom calcule avec le trafic ; tout autre fournisseur doit l'indiquer honnêtement.
+    assert(data.traffic_aware === (data.provider === "tomtom"), `traffic_aware incohérent pour ${data.provider}`);
+    if (data.provider === "tomtom") {
+      assert(typeof r.traffic_delay === "number" && Array.isArray(r.speed_limits), "données trafic TomTom manquantes");
+    }
+    const extra = data.provider === "tomtom" ? ` · trafic +${Math.round(r.traffic_delay / 60)} min · ${r.speed_limits.length} limitation(s)` : "";
+    return `${data.provider} · ${data.routes.length} itinéraire(s) · ${(r.distance / 1000).toFixed(1)} km · ${Math.round(r.duration / 60)} min${extra}`;
   });
 }
 
@@ -69,6 +74,18 @@ await check("Lecture publique des signalements (RLS)", async () => {
   assert(res.ok, `HTTP ${res.status}`);
   const rows = await res.json();
   return `${rows.length} ligne(s) lisible(s)`;
+});
+
+await check("Incidents officiels TomTom (lecture publique, écriture interdite)", async () => {
+  const res = await fetch(`${SB_URL}/rest/v1/official_incidents?select=id,category,magnitude&active=eq.true&limit=1000`, { headers });
+  assert(res.ok, `HTTP ${res.status}`);
+  const rows = await res.json();
+  const w = await fetch(`${SB_URL}/rest/v1/official_incidents`, {
+    method: "POST", headers: { ...headers, Prefer: "return=minimal" },
+    body: JSON.stringify({ id: "test", geometry: { type: "Point", coordinates: [-6.8, 34] }, lat: 34, lng: -6.8 }),
+  });
+  assert(w.status === 401 || w.status === 403, `écriture : HTTP ${w.status} au lieu de 401/403`);
+  return `${rows.length} incident(s) actif(s) · écriture HTTP ${w.status}`;
 });
 
 await check("Écriture directe interdite sans session (RLS)", async () => {
