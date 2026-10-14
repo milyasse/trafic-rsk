@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { formatAge } from "../lib/format";
-import { isLive, matchesFilters, REPORT_META, REPORT_TYPES, sortByRecency, type Report, type ReportType } from "../lib/reports";
+import { isLive, matchesFilters, REPORT_TYPES, sortByRecency, type Report, type ReportType } from "../lib/reports";
 import { focusMap, setState, useStore, useT } from "../store";
+import { IncidentBadge, IncidentIcon } from "./Icons";
 
 export function ReportRow({ r, onClick }: { r: Report; onClick?: () => void }) {
   const t = useT();
@@ -14,13 +15,7 @@ export function ReportRow({ r, onClick }: { r: Report; onClick?: () => void }) {
       onClick={onClick ?? (() => { setState({ selectedReportId: r.id, pickedPoint: null }); focusMap([r.lng, r.lat], 15); })}
       className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-start hover:bg-[var(--surface-2)] ${live ? "" : "opacity-70"}`}
     >
-      <span
-        className="grid h-10 w-10 shrink-0 place-items-center rounded-full border-[3px] bg-white text-lg"
-        style={{ borderColor: REPORT_META[r.type].color }}
-        aria-hidden
-      >
-        {REPORT_META[r.type].glyph}
-      </span>
+      <IncidentBadge type={r.type} size={40} />
       <span className="min-w-0 flex-1">
         <span className="block truncate font-bold">
           {t(`report.type.${r.type}`)}
@@ -61,7 +56,7 @@ export function IncidentsPanel() {
       {byType.size > 0 && (
         <p className="text-sm" aria-label={t("incidents.summary")}>
           {[...byType.entries()].sort((a, b) => b[1] - a[1]).map(([type, n]) => (
-            <span key={type} className="me-3 inline-block">{REPORT_META[type].glyph} {n} {t(`report.type.${type}`)}</span>
+            <span key={type} className="me-3 inline-flex items-center gap-1.5 align-middle"><IncidentIcon type={type} size={18} /> {n} {t(`report.type.${type}`)}</span>
           ))}
         </p>
       )}

@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { formatClock, formatDistance, formatDuration } from "../lib/format";
-import { REPORT_META } from "../lib/reports";
 import type { AnnotatedRoute } from "../lib/routing";
 import { saveFavorite } from "../services/data";
 import { startNavigation } from "../services/navigation";
 import { clearRoutes, computeRoutes, startPick } from "../services/routes";
 import { setState, useStore, useT } from "../store";
 import { SearchBox } from "./SearchBox";
+import { IncidentIcon } from "./Icons";
 
 function RouteRow({ route, selected, onSelect }: { route: AnnotatedRoute; selected: boolean; onSelect: () => void }) {
   const t = useT();
@@ -18,11 +18,10 @@ function RouteRow({ route, selected, onSelect }: { route: AnnotatedRoute; select
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`relative w-full rounded-xl px-4 py-3 text-start transition-colors ${selected ? "bg-accent-soft" : "hover:bg-[var(--surface-2)]"}`}
+      className={`w-full rounded-2xl px-[18px] py-3.5 text-start transition-colors ${selected ? "bg-accent-soft border-2 border-[var(--accent)]" : "surface border hairline hover:bg-[var(--surface-2)]"}`}
     >
-      {selected && <span className="bg-accent absolute inset-y-2 start-0 w-1.5 rounded-full" aria-hidden />}
       <div className="flex items-baseline justify-between gap-3">
-        <span className="tabular text-2xl font-bold">{formatDuration(route.duration, lang)}</span>
+        <span className="tabular text-[28px] leading-8 font-bold">{formatDuration(route.duration, lang)}</span>
         <span className="muted tabular text-sm">{formatDistance(route.distance, lang)} · {t("route.arrival", { time: formatClock(eta, lang) })}</span>
       </div>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm">
@@ -38,7 +37,7 @@ function RouteRow({ route, selected, onSelect }: { route: AnnotatedRoute; select
       <div className="mt-1 text-sm">
         {route.incidents.length > 0 ? (
           <span className="text-[var(--color-alerte)]">
-            {route.incidents.slice(0, 4).map((i) => REPORT_META[i.report.type].glyph).join(" ")}{" "}
+            {route.incidents.slice(0, 4).map((i) => <span key={i.report.id} className="me-0.5 inline-block align-middle"><IncidentIcon type={i.report.type} size={16} /></span>)}{" "}
             {t("route.incidents", { n: route.incidents.length })}
           </span>
         ) : (
@@ -124,7 +123,7 @@ export function RoutePanel() {
 
       {routes.length > 0 && (
         <>
-          <div className="flex flex-col gap-1" role="list">
+          <div className="flex flex-col gap-2.5" role="list">
             {routes.map((r) => (
               <RouteRow key={r.id} route={r} selected={r.id === selectedRouteId} onSelect={() => setState({ selectedRouteId: r.id })} />
             ))}
@@ -133,10 +132,10 @@ export function RoutePanel() {
             <strong>{t("route.durationNetwork")}.</strong> {response?.traffic_aware ? "" : t("route.durationNetworkHelp")}
           </p>
           <div className="flex gap-2">
-            <button type="button" className="bg-accent h-12 flex-1 rounded-xl text-lg font-bold text-white" onClick={startNavigation}>
+            <button type="button" className="btn btn-primary flex-1" onClick={startNavigation}>
               {t("route.start")}
             </button>
-            <button type="button" className="h-12 rounded-xl border hairline px-5 font-bold" onClick={clearRoutes}>
+            <button type="button" className="btn btn-secondary" onClick={clearRoutes}>
               {t("route.cancel")}
             </button>
           </div>

@@ -8,6 +8,7 @@ import { REPORT_META, type Report } from "../lib/reports";
 import { supabase } from "../lib/supabase";
 import { toast, useStore, useT } from "../store";
 import { AuthForm } from "../components/AccountPanel";
+import { IncidentIcon } from "../components/Icons";
 
 type Json = number | boolean | string | Json[] | { [k: string]: Json };
 interface SettingRow { key: string; value: Json; description: string | null; updated_at: string }
@@ -230,7 +231,7 @@ export default function AdminPage({ dark }: { dark: boolean }) {
                 ))}
               </dl>
               <h3 className="mt-4 text-sm font-bold">Par type (24 h)</h3>
-              <p className="text-sm">{Object.entries(stats.by_type_24h).map(([k, v]) => `${REPORT_META[k as Report["type"]]?.glyph ?? ""} ${k} : ${v}`).join(" · ") || "—"}</p>
+              <p className="text-sm">{Object.entries(stats.by_type_24h).map(([k, v]) => `${k} : ${v}`).join(" · ") || "—"}</p>
               <h3 className="mt-2 text-sm font-bold">Par ville (24 h)</h3>
               <p className="text-sm">{Object.entries(stats.by_city_24h).map(([k, v]) => `${k} : ${v}`).join(" · ") || "—"}</p>
               <h3 className="mt-2 text-sm font-bold">Par statut (7 jours)</h3>
@@ -283,7 +284,7 @@ export default function AdminPage({ dark }: { dark: boolean }) {
                 <tbody>
                   {visible.map((r) => (
                     <tr key={r.id} className="border-t hairline align-top">
-                      <td className="py-1.5"><button type="button" className="text-start font-bold" onClick={() => setFocus([r.lng, r.lat])}>{REPORT_META[r.type].glyph} {t(`report.type.${r.type}`)}</button>
+                      <td className="py-1.5"><button type="button" className="text-start font-bold" onClick={() => setFocus([r.lng, r.lat])}><span className="inline-flex items-center gap-1.5"><IncidentIcon type={r.type} size={18} /> {t(`report.type.${r.type}`)}</span></button>
                         {r.description && <span className="muted block">{r.description}</span>}</td>
                       <td className="py-1.5">{r.city}</td>
                       <td className="py-1.5">{r.status}</td>

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { COVERAGE, inBBox, type LngLat } from "../lib/geo";
-import { REPORT_META, REPORT_TYPES, type ReportType } from "../lib/reports";
+import { REPORT_TYPES, type ReportType } from "../lib/reports";
 import { createReport } from "../services/data";
 import { setState, toast, tr, useStore, useT } from "../store";
-import { IconClose } from "./Icons";
+import { IconClose, IncidentIcon } from "./Icons";
 import { mapCenter } from "./MapView";
 
 export function ReportSheet() {
@@ -62,7 +62,7 @@ export function ReportSheet() {
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5" role="radiogroup" aria-label={t("incidents.filterType")}>
+        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5" role="radiogroup" aria-label={t("incidents.filterType")}>
           {REPORT_TYPES.map((ty) => (
             <button
               key={ty}
@@ -71,9 +71,9 @@ export function ReportSheet() {
               role="radio"
               aria-checked={type === ty}
               onClick={() => setType(ty)}
-              className={`flex flex-col items-center gap-1 rounded-xl border-2 px-1 py-2 text-center text-[13px] leading-tight font-bold ${type === ty ? "border-[var(--accent)] bg-accent-soft" : "hairline"}`}
+              className={`flex h-[92px] flex-col items-center justify-center gap-1.5 rounded-[14px] px-1 text-center text-[13px] leading-4 font-bold ${type === ty ? "border-2 border-[var(--accent)] bg-accent-soft" : "border-[1.5px] hairline"}`}
             >
-              <span className="text-2xl" aria-hidden>{REPORT_META[ty].glyph}</span>
+              <IncidentIcon type={ty} size={28} />
               {t(`report.type.${ty}`)}
             </button>
           ))}
@@ -82,10 +82,10 @@ export function ReportSheet() {
 
         <fieldset className="mt-4">
           <legend className="text-sm font-bold">{t("report.severity")}</legend>
-          <div className="mt-1 flex rounded-xl border hairline p-1">
+          <div className="mt-1 flex rounded-[14px] border-[1.5px] hairline p-1">
             {([1, 2, 3] as const).map((n) => (
               <button key={n} type="button" aria-pressed={severity === n} onClick={() => setSeverity(n)}
-                className={`h-10 flex-1 rounded-lg font-bold ${severity === n ? "bg-accent text-white" : ""}`}>
+                className={`h-11 flex-1 rounded-[10px] font-bold ${severity === n ? "bg-accent text-white" : ""}`}>
                 {t(`report.severity.${n}`)}
               </button>
             ))}
@@ -120,7 +120,7 @@ export function ReportSheet() {
           type="button"
           disabled={!type || !point || sending}
           onClick={send}
-          className="mt-5 h-13 w-full rounded-xl bg-[var(--color-alerte)] py-3 text-lg font-bold text-white disabled:opacity-50"
+          className="btn btn-danger mt-5 w-full"
         >
           {sending ? t("common.loading") : t("report.send")}
         </button>

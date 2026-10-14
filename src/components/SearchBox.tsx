@@ -111,7 +111,7 @@ export function SearchBox({ target = "destination" }: { target?: "destination" |
 
   return (
     <div className="relative w-full">
-      <div className="surface flex items-center gap-2 rounded-2xl px-3 shadow-[0_2px_10px_rgb(15_26_38/.16)] lg:shadow-none lg:border hairline">
+      <div className={`surface flex items-center gap-2.5 rounded-[18px] px-4 ${target === "origin" ? "border hairline" : "shadow-float lg:shadow-none lg:border hairline"}`}>
         <IconSearch size={20} className="muted shrink-0" />
         <input
           ref={inputRef}
@@ -122,7 +122,7 @@ export function SearchBox({ target = "destination" }: { target?: "destination" |
           aria-autocomplete="list"
           aria-label={t(target === "origin" ? "route.originPlaceholder" : "search.placeholder")}
           placeholder={t(target === "origin" ? "route.originPlaceholder" : "search.placeholder")}
-          className="h-12 w-full bg-transparent text-[17px] outline-none placeholder:text-[var(--muted)]"
+          className="h-[52px] w-full bg-transparent text-[17px] outline-none placeholder:text-[var(--muted)]"
           value={query}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); setActive(-1); }}
           onFocus={() => setOpen(true)}

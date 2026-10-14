@@ -1,3 +1,5 @@
+import { INCIDENT_ICONS } from "../lib/icons";
+import type { ReportType } from "../lib/reports";
 import type { ManeuverIcon } from "../lib/instructions";
 
 type P = { size?: number; className?: string };
@@ -72,4 +74,29 @@ export function ManeuverArrow({ icon, size = 56 }: { icon: ManeuverIcon; size?: 
     case "straight":
     default: return <svg {...s}><path d="M24 42V8" /><path d="m14 18 10-10 10 10" /></svg>;
   }
+}
+
+/** Pictogramme d'un type d'incident (tracés partagés avec la carte et la maquette Figma). */
+export function IncidentIcon({ type, size = 24, color }: { type: ReportType; size?: number; color?: string }) {
+  const ic = INCIDENT_ICONS[type];
+  const c = color ?? ic.color;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {ic.strokes.map((d, i) => <path key={i} d={d} stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />)}
+      {ic.fills?.map((d, i) => <path key={`f${i}`} d={d} fill={c} />)}
+    </svg>
+  );
+}
+
+/** Pastille ronde (fond blanc, anneau coloré) contenant le pictogramme. */
+export function IncidentBadge({ type, size = 40 }: { type: ReportType; size?: number }) {
+  return (
+    <span
+      className="grid shrink-0 place-items-center rounded-full bg-white"
+      style={{ width: size, height: size, border: `3px solid ${INCIDENT_ICONS[type].color}` }}
+      aria-hidden
+    >
+      <IncidentIcon type={type} size={Math.round(size * 0.55)} />
+    </span>
+  );
 }

@@ -3,7 +3,8 @@ import { backoffDelay } from "./backoff";
 import { matchCities } from "./cities";
 import { formatAge, formatDistance, formatDuration } from "./format";
 import { dedupe, photonToPlace } from "./geocode";
-import { DEFAULT_FILTERS, errorCode, isLive, matchesFilters, type Report } from "./reports";
+import { DEFAULT_FILTERS, errorCode, isLive, matchesFilters, REPORT_TYPES, type Report } from "./reports";
+import { INCIDENT_ICONS } from "./icons";
 import { translate } from "../i18n";
 
 const base: Report = {
@@ -88,5 +89,15 @@ describe("traductions", () => {
     expect(translate("en", "traffic.unavailable")).toBe("Live traffic unavailable");
     expect(translate("ar", "account.deleteConfirm")).toBe(translate("fr", "account.deleteConfirm"));
     expect(translate("fr", "traffic.unavailable")).toBe("Trafic en temps réel indisponible");
+  });
+});
+
+describe("pictogrammes d'incident (maquette Figma)", () => {
+  it("chaque type a un pictogramme vectoriel et une couleur", () => {
+    for (const ty of REPORT_TYPES) {
+      expect(INCIDENT_ICONS[ty].strokes.length).toBeGreaterThan(0);
+      expect(INCIDENT_ICONS[ty].color).toMatch(/^#[0-9A-F]{6}$/i);
+      for (const d of INCIDENT_ICONS[ty].strokes) expect(d).toMatch(/^[Mm]/);
+    }
   });
 });

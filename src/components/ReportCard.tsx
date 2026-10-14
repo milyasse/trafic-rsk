@@ -1,11 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { formatAge, formatClock, formatDistance } from "../lib/format";
 import { formatCoords, reverseGeocode } from "../lib/geocode";
-import { isLive, REPORT_META } from "../lib/reports";
+import { isLive } from "../lib/reports";
 import { voteReport } from "../services/data";
 import { cancelPickChoice, commitPick, computeRoutes } from "../services/routes";
 import { getState, setState, toast, tr, useStore, useT } from "../store";
-import { IconClose } from "./Icons";
+import { IconClose, IncidentBadge } from "./Icons";
 
 function Floating({ children, label, onClose }: { children: ReactNode; label: string; onClose: () => void }) {
   const t = useT();
@@ -42,9 +42,7 @@ export function ReportCard() {
   return (
     <Floating label={t(`report.type.${report.type}`)} onClose={close}>
       <div className="flex items-start gap-3 pe-10">
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-[3px] bg-white text-2xl" style={{ borderColor: REPORT_META[report.type].color }} aria-hidden>
-          {REPORT_META[report.type].glyph}
-        </span>
+        <IncidentBadge type={report.type} size={48} />
         <div className="min-w-0">
           <h2 className="text-lg font-bold leading-tight">{t(`report.type.${report.type}`)}</h2>
           <p className="muted text-sm">
@@ -67,11 +65,11 @@ export function ReportCard() {
       {live && (
         <div className="mt-3 flex gap-2">
           {!mine && (
-            <button type="button" disabled={busy} onClick={() => vote("confirm")} className="bg-accent h-11 flex-1 rounded-xl font-bold text-white disabled:opacity-60">
+            <button type="button" disabled={busy} onClick={() => vote("confirm")} className="btn btn-primary flex-1">
               {t("report.stillThere")}
             </button>
           )}
-          <button type="button" disabled={busy} onClick={() => vote("gone")} className="h-11 flex-1 rounded-xl border hairline font-bold disabled:opacity-60">
+          <button type="button" disabled={busy} onClick={() => vote("gone")} className="btn btn-secondary flex-1">
             {t("report.gone")}
           </button>
         </div>
@@ -105,11 +103,11 @@ export function PickedCard() {
       <p className="tabular font-bold">{formatCoords(picked)}</p>
       <p className="muted text-sm">{address ?? t("common.loading")}</p>
       <div className="mt-3 flex gap-2">
-        <button type="button" className="bg-accent h-11 flex-1 rounded-xl font-bold text-white"
+        <button type="button" className="btn btn-primary flex-1"
           onClick={() => { setState({ pickedPoint: null }); void computeRoutes({ label, lngLat: picked }); }}>
           {t("map.goHere")}
         </button>
-        <button type="button" className="h-11 flex-1 rounded-xl border hairline font-bold"
+        <button type="button" className="btn btn-secondary flex-1"
           onClick={() => {
             setState({ origin: { label, lngLat: picked }, pickedPoint: null });
             if (getState().destination) void computeRoutes();
@@ -118,7 +116,7 @@ export function PickedCard() {
           {t("route.fromHere")}
         </button>
       </div>
-      <button type="button" className="mt-2 h-11 w-full rounded-xl border hairline font-bold"
+      <button type="button" className="btn btn-secondary mt-2 w-full"
         onClick={() => setState({ reportSheet: { at: picked, source: "picked" }, pickedPoint: null })}>
         {t("map.reportHere")}
       </button>
@@ -149,7 +147,7 @@ export function PickChoiceCard() {
       </div>
       {c.address && <p className="muted text-sm">{t("pick.near", { address: c.address })}</p>}
 
-      <button type="button" onClick={() => void commitPick("exact")} className="bg-accent mt-3 flex h-12 w-full items-center justify-center rounded-xl font-bold text-white">
+      <button type="button" onClick={() => void commitPick("exact")} className="btn btn-primary mt-3 w-full">
         {t("pick.useExact")}
       </button>
 

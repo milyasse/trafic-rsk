@@ -5,17 +5,17 @@
 /* Palette : bleu des Oudayas pour l'action et l'itinéraire, chaux et sable pour les surfaces.
    Vert/orange/rouge sont réservés à la circulation et aux incidents. */
 @theme {
-  --font-sans: "Atkinson Hyperlegible", "Noto Sans Arabic", system-ui, sans-serif;
+  --font-sans: "Atkinson Hyperlegible Next", "Noto Sans Arabic", system-ui, sans-serif;
   --color-oudaya: #1D5FA6;
   --color-oudaya-deep: #0B3563;
-  --color-oudaya-soft: #E3EDF8;
+  --color-oudaya-soft: #E4EEF9;
   --color-chaux: #FFFFFF;
-  --color-sable: #F3EFE6;
-  --color-encre: #17212B;
+  --color-sable: #F3F5F8;
+  --color-encre: #14202B;
   --color-gris: #5B6673;
   --color-nuit: #0F1A26;
   --color-nuit-2: #18263A;
-  --color-alerte: #B3261E;
+  --color-alerte: #C62828;
 }
 
 :root {
@@ -23,7 +23,8 @@
   --surface-2: var(--color-sable);
   --text: var(--color-encre);
   --muted: var(--color-gris);
-  --line: #DCD6C9;
+  --line: #DDE3EA;
+  --shadow-float: 0 1px 2px rgb(15 26 38 / .18), 0 6px 18px rgb(15 26 38 / .14);
   --accent: var(--color-oudaya);
   --accent-soft: var(--color-oudaya-soft);
   color-scheme: light;
@@ -63,11 +64,17 @@ body {
 
 /* Boutons ronds flottants sur la carte */
 .map-btn {
-  width: 48px; height: 48px; border-radius: 9999px;
+  width: 52px; height: 52px; border-radius: 9999px;
   display: grid; place-items: center;
   background: var(--surface); color: var(--text);
-  box-shadow: 0 1px 2px rgb(15 26 38 / .18), 0 4px 14px rgb(15 26 38 / .14);
+  box-shadow: var(--shadow-float);
 }
+.shadow-float { box-shadow: var(--shadow-float); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 50px; padding: 0 20px; border-radius: 14px; font-weight: 700; font-size: 17px; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-secondary { background: var(--surface); color: var(--text); border: 1.5px solid var(--line); }
+.btn-danger { background: var(--color-alerte); color: #fff; }
+.btn:disabled { opacity: .5; }
 .map-btn:active { transform: scale(.96); }
 
 /* Position de l'utilisateur */
@@ -103,15 +110,15 @@ body {
 /* Bandeau de manœuvre : l'élément signature */
 .maneuver {
   background: var(--color-oudaya); color: #fff;
-  border-radius: 0 0 22px 22px;
+  border-radius: 0 0 26px 26px;
   box-shadow: 0 6px 24px rgb(11 53 99 / .35);
 }
 @media (min-width: 1024px) { .maneuver { border-radius: 22px; } }
-.maneuver__distance { font-size: clamp(2.2rem, 7vw, 3rem); line-height: 1; font-weight: 700; letter-spacing: -.01em; }
-.maneuver__road { font-size: 1.2rem; line-height: 1.25; }
+.maneuver__distance { font-size: clamp(2.4rem, 8vw, 2.75rem); line-height: 1.05; font-weight: 800; letter-spacing: -.01em; }
+.maneuver__road { font-size: 1.375rem; line-height: 1.25; font-weight: 700; }
 
 /* Feuille inférieure mobile */
-.sheet { border-radius: 20px 20px 0 0; box-shadow: 0 -6px 24px rgb(15 26 38 / .16); }
+.sheet { border-radius: 24px 24px 0 0; box-shadow: 0 -6px 24px rgb(15 26 38 / .16); }
 @media (min-width: 1024px) { .sheet { border-radius: 0; box-shadow: 1px 0 0 var(--line); } }
 
 .maplibregl-ctrl-attrib { font-size: 11px; }

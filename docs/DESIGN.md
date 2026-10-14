@@ -1,0 +1,22 @@
+# Design de l'interface
+
+## Deux propositions comparées (14/10/2026)
+
+| | Figma | Canva |
+|---|---|---|
+| Fichier | [Trafic RSK — Proposition design (Figma)](https://www.figma.com/design/IlRi1f2nCNJl6sswlv2cMY) | [Trafic RSK UI Mockup (Canva)](https://www.canva.com/d/wQPmYjZ763XaUmu) |
+| Contenu | 4 écrans (accueil, choix d'itinéraire, navigation guidée, signalement) + bibliothèque de composants | 1 planche de présentation avec 4 téléphones |
+| Fidélité aux données de l'app | textes et chiffres réels (Gare Rabat Ville → Gare de Kénitra, 41 min / 47 km), 10 types d'incidents exacts | chiffres inventés, types d'incidents différents de l'application |
+| Qualité rédactionnelle | conforme | fautes (« indisponsible », « Emboutaillage ») |
+| Réutilisation par le code | variables de couleur, styles de texte, effet d'ombre, composants (Bouton, Carte itinéraire, Tuile incident, Bouton carte, Pastille état), 10 icônes vectorielles | maquettes aplaties, non exploitables écran par écran |
+| Atout | spécification directement transposable | rendu « vitrine » efficace pour une présentation |
+
+**Décision : la proposition Figma est retenue** et sert de référence à l'interface. La planche Canva peut servir de visuel de présentation (après correction des textes).
+
+## Système retenu
+
+- **Typographie** : Atkinson Hyperlegible Next (lisibilité d'un coup d'œil en conduite). Échelle : manœuvre 44 ExtraBold, titre 22, durée 28, corps 17, légende 14.
+- **Couleurs** : primaire `#1D5FA6` (bleu des Oudayas), profond `#0B3563`, doux `#E4EEF9`, fond `#F3F5F8`, encre `#14202B`, atténué `#5B6673`, trait `#DDE3EA`, alerte `#C62828`. Vert / orange / rouge / rouge foncé / gris réservés au trafic.
+- **Formes** : boutons et tuiles 14 px, cartes 16 px, barre de recherche 18 px, feuilles 24 px, bandeau de manœuvre 26 px ; ombre « flottant » à deux couches.
+- **Pictogrammes** : tracés vectoriels communs à la maquette (`Icône incident/*`), à l'interface (`src/lib/icons.ts`) et aux marqueurs de la carte.
+- **Mode sombre** : défini dans le code (`src/index.css`) ; l'offre Figma gratuite ne permet qu'un mode de variables.

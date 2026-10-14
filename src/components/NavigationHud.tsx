@@ -4,7 +4,7 @@ import { instructionText, maneuverIcon, roadName } from "../lib/instructions";
 import { REPORT_META } from "../lib/reports";
 import { acceptSuggestion, dismissSuggestion, formatDelta, setFollowing, stopNavigation } from "../services/navigation";
 import { setState, useStore, useT } from "../store";
-import { IconList, IconLocate, IconVolume } from "./Icons";
+import { IconList, IconLocate, IconVolume, IncidentIcon } from "./Icons";
 import { ManeuverArrow } from "./Icons";
 
 export function NavigationHud() {
@@ -58,8 +58,8 @@ export function NavigationHud() {
           <p className="surface mx-3 mt-2 rounded-xl px-3 py-2 text-sm">{t("nav.gpsWeak")} · {t("geo.accuracy", { m: formatDistance(userPos.accuracy, lang) })}</p>
         )}
         {alertReport && nav.alertAhead && (
-          <div className="surface mx-3 mt-2 flex items-center gap-3 rounded-xl border-s-4 px-3 py-2 shadow-lg" style={{ borderColor: REPORT_META[alertReport.type].color }} role="alert">
-            <span className="text-2xl" aria-hidden>{REPORT_META[alertReport.type].glyph}</span>
+          <div className="surface shadow-float mx-4 mt-3 flex items-center gap-3 rounded-[14px] border-s-[5px] px-3.5 py-2.5" style={{ borderColor: REPORT_META[alertReport.type].color }} role="alert">
+            <IncidentIcon type={alertReport.type} size={26} />
             <span className="font-bold">
               {t("nav.alertAhead", { type: t(`report.type.${alertReport.type}`), d: formatDistance(nav.alertAhead.distance, lang) })}
             </span>
@@ -97,7 +97,7 @@ export function NavigationHud() {
         )}
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <p className="tabular text-2xl font-bold leading-none">{t("nav.eta", { time: formatClock(eta, lang) })}</p>
+            <p className="tabular text-[28px] font-bold leading-8">{t("nav.eta", { time: formatClock(eta, lang) })}</p>
             <p className="muted tabular mt-1 text-sm">
               {formatDuration(nav.remainingDuration, lang)} · {t("nav.remaining", { d: formatDistance(nav.remainingDistance, lang) })}
             </p>
@@ -108,7 +108,7 @@ export function NavigationHud() {
           <button type="button" aria-label={voice ? t("nav.voiceOn") : t("nav.voiceOff")} aria-pressed={voice} onClick={() => setState({ voice: !voice })} className="grid h-12 w-12 place-items-center rounded-full border hairline">
             <IconVolume off={!voice} />
           </button>
-          <button type="button" onClick={stopNavigation} className="h-12 rounded-full bg-[var(--color-alerte)] px-5 font-bold text-white">
+          <button type="button" onClick={stopNavigation} className="btn btn-danger">
             {t("nav.stop")}
           </button>
         </div>

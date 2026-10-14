@@ -34,7 +34,7 @@ Navigateur (React + MapLibre, GitHub Pages)
                                delete-account
 ```
 
-Détails : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Exploitation : [docs/EXPLOITATION.md](docs/EXPLOITATION.md) · Tests : [docs/TESTS.md](docs/TESTS.md)
+Détails : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Design : [docs/DESIGN.md](docs/DESIGN.md) · Exploitation : [docs/EXPLOITATION.md](docs/EXPLOITATION.md) · Tests : [docs/TESTS.md](docs/TESTS.md)
 
 ## Lancer le projet en local
 

@@ -40,7 +40,7 @@ export function StatusPill() {
   const dot = rt === "connected" ? "#2E9E5B" : rt === "offline" ? "#B3261E" : "#F08C1A";
   const rtLabel = rt === "connected" ? t("rt.connected") : rt === "offline" ? t("rt.offline") : rt === "reconnecting" ? t("rt.reconnecting") : t("rt.connecting");
   return (
-    <div className="surface inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1.5 text-[13px] shadow-[0_1px_6px_rgb(15_26_38/.18)] lg:shadow-none lg:border hairline" role="status">
+    <div className="surface shadow-float inline-flex max-w-full items-center gap-2 rounded-full px-3.5 py-2 text-[14px] lg:shadow-none lg:border hairline" role="status">
       <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: dot }} aria-hidden />
       <span className="truncate">
         <strong>{rtLabel}</strong>

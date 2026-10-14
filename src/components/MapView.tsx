@@ -5,7 +5,8 @@ import type { Feature, FeatureCollection, Point } from "geojson";
 import { INITIAL_VIEW, MAX_BOUNDS, type Basemap } from "../config";
 import { initialStyle, resolveStyle } from "../lib/basemaps";
 import { COVERAGE, inBBox, lineBBox, type LngLat } from "../lib/geo";
-import { isLive, REPORT_META, REPORT_TYPES, type Report } from "../lib/reports";
+import { isLive, REPORT_TYPES, type Report } from "../lib/reports";
+import { INCIDENT_ICONS } from "../lib/icons";
 import { displayLevel, TRAFFIC_COLORS } from "../lib/traffic";
 import { setFollowing } from "../services/navigation";
 import { applyPick } from "../services/routes";
@@ -24,18 +25,27 @@ function drawReportIcon(type: (typeof REPORT_TYPES)[number]): ImageData {
   const c = document.createElement("canvas");
   c.width = c.height = size;
   const ctx = c.getContext("2d")!;
-  const meta = REPORT_META[type];
+  const icon = INCIDENT_ICONS[type];
   ctx.beginPath();
   ctx.arc(size / 2, size / 2, size / 2 - 4, 0, Math.PI * 2);
   ctx.fillStyle = "#ffffff";
   ctx.fill();
   ctx.lineWidth = 6;
-  ctx.strokeStyle = meta.color;
+  ctx.strokeStyle = icon.color;
   ctx.stroke();
-  ctx.font = `${size * 0.46}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(meta.glyph, size / 2, size / 2 + 2);
+  // Pictogramme vectoriel (repère 24×24) centré, ~38 px
+  const scale = 38 / 24;
+  ctx.save();
+  ctx.translate(size / 2 - 12 * scale, size / 2 - 12 * scale);
+  ctx.scale(scale, scale);
+  ctx.strokeStyle = icon.color;
+  ctx.fillStyle = icon.color;
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  for (const d of icon.strokes) ctx.stroke(new Path2D(d));
+  for (const d of icon.fills ?? []) ctx.fill(new Path2D(d));
+  ctx.restore();
   return ctx.getImageData(0, 0, size, size);
 }
 
