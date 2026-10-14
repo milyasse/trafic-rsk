@@ -69,7 +69,7 @@ export const en: Partial<Record<Key, string>> = {
   "route.computing": "Calculating routes…",
   "route.error": "Route calculation failed. Check your connection and try again.",
   "route.rateLimited": "Too many requests in a short time. Wait a minute.",
-  "route.needPosition": "Location unavailable: enter a starting address above, or long-press the map and choose “Start from here”.",
+  "route.needPosition": "Location unavailable: enter a starting address above or tap “Choose starting point on the map”.",
   "route.fastest": "Fastest",
   "route.recommended": "Recommended",
   "route.alternative": "Alternative",

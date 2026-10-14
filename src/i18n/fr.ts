@@ -83,7 +83,7 @@ export const fr = {
   "route.computing": "Calcul des itinéraires…",
   "route.error": "Le calcul d'itinéraire a échoué. Vérifiez votre connexion puis réessayez.",
   "route.rateLimited": "Trop de calculs en peu de temps. Patientez une minute.",
-  "route.needPosition": "Position indisponible : saisissez une adresse de départ ci-dessus, ou faites un appui long sur la carte puis « Partir d'ici ».",
+  "route.needPosition": "Position indisponible : saisissez une adresse de départ ci-dessus ou touchez « Choisir le départ sur la carte ».",
   "route.fastest": "Le plus rapide",
   "route.recommended": "Recommandé",
   "route.alternative": "Alternative",
