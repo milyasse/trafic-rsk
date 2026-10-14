@@ -5,6 +5,7 @@ import { backoffDelay } from "../lib/backoff";
 import { haversine, type LngLat } from "../lib/geo";
 import { errorCode, REPORT_COLUMNS, type Report, type ReportType } from "../lib/reports";
 import type { TrafficSegment, TrafficStatus } from "../lib/traffic";
+import { OFFICIAL_COLUMNS, officialSeverity, type OfficialIncident } from "../lib/official";
 import { ensureSession, supabase } from "../lib/supabase";
 import { formatDistance } from "../lib/format";
 import { getState, setState, toast, tr, upsertReports, type Favorite, type Profile, type Settings } from "../store";
@@ -59,9 +60,20 @@ export async function loadTraffic(): Promise<void> {
   });
 }
 
+export async function loadOfficialIncidents(): Promise<void> {
+  const { data, error } = await supabase.from("official_incidents").select(OFFICIAL_COLUMNS).eq("active", true).limit(1000);
+  if (error) throw error;
+  const fresh: Record<string, OfficialIncident> = {};
+  for (const o of (data ?? []) as unknown as OfficialIncident[]) fresh[o.id] = o;
+  setState((s) => ({
+    officialIncidents: fresh,
+    selectedOfficialId: s.selectedOfficialId && fresh[s.selectedOfficialId] ? s.selectedOfficialId : null,
+  }));
+}
+
 export async function syncAll(): Promise<void> {
   try {
-    await Promise.all([loadReports(), loadTraffic()]);
+    await Promise.all([loadReports(), loadTraffic(), loadOfficialIncidents()]);
     setState({ lastSync: Date.now() });
   } catch {
     // les données affichées restent celles de la dernière synchronisation ; l'âge est visible
@@ -118,6 +130,22 @@ function subscribeChannel() {
       const row = p.new as TrafficSegment;
       if (!row?.point_id) return;
       setState((s) => ({ trafficSegments: [...s.trafficSegments.filter((x) => x.point_id !== row.point_id), row] }));
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "official_incidents" }, (p) => {
+      const row = p.new as OfficialIncident;
+      if (!row?.id) return;
+      // Nouvel incident officiel important près de soi : alerte discrète
+      const st = getState();
+      if (p.eventType === "INSERT" && row.active && st.userPos && officialSeverity(row) === 3) {
+        const d = haversine(st.userPos.lngLat, [row.lng, row.lat]);
+        if (d <= st.alertRadius) toast(tr("report.newNearby", { type: tr(`official.cat.${row.category}` as never), d: formatDistance(d, st.lang) }), "alert");
+      }
+      setState((s) => {
+        const next = { ...s.officialIncidents };
+        if (row.active) next[row.id] = row;
+        else delete next[row.id];
+        return { officialIncidents: next, selectedOfficialId: s.selectedOfficialId === row.id && !row.active ? null : s.selectedOfficialId };
+      });
     })
     .on("postgres_changes", { event: "UPDATE", schema: "public", table: "traffic_status" }, (p) => {
       const row = p.new as TrafficStatus;

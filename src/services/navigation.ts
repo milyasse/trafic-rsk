@@ -4,11 +4,11 @@ import type { LngLat } from "../lib/geo";
 import { instructionText, spokenInstruction } from "../lib/instructions";
 import { ARRIVAL_DISTANCE, announceDistances, offRouteThreshold, prepare, progress, type Prepared } from "../lib/navigation";
 import { REPORT_META } from "../lib/reports";
-import { incidentsOnLine, type AnnotatedRoute } from "../lib/routing";
+import { incidentsOnLine, speedLimitAt, type AnnotatedRoute } from "../lib/routing";
 import { getState, setState, subscribe, toast, tr } from "../store";
 import { addHistory } from "./data";
 import { startWatch } from "./geolocation";
-import { requestRoutes } from "./routes";
+import { requestRoutes, routeHazards } from "./routes";
 import { keepScreenOn, silence, speak } from "./voice";
 
 let prep: Prepared | null = null;
@@ -39,9 +39,11 @@ export function startNavigation(): void {
       routeId: route.id, stepIndex: 0, distanceToStep: route.steps[0]?.distance ?? 0,
       remainingDistance: route.distance, remainingDuration: route.duration,
       offRoute: false, rerouting: false, arrived: false, following: true, alertAhead: null, suggestion: null,
+      speedLimit: speedLimitAt(route, 0),
     },
     sheet: "peek",
     selectedReportId: null,
+    selectedOfficialId: null,
   });
   startWatch();
   void keepScreenOn(true);
@@ -113,7 +115,7 @@ function onPosition(pos: LngLat, accuracy: number, speed: number | null) {
   }
 
   // Incident signalé devant soi
-  const ahead = incidentsOnLine(prep.line, prep.cumulative, Object.values(s.reports), Date.now())
+  const ahead = incidentsOnLine(prep.line, prep.cumulative, routeHazards(), Date.now())
     .filter((i) => i.along > p.along && i.along - p.along <= Math.max(2000, s.alertRadius));
   const next = ahead[0];
   const alertAhead = next ? { reportId: next.report.id, distance: next.along - p.along } : null;
@@ -126,7 +128,7 @@ function onPosition(pos: LngLat, accuracy: number, speed: number | null) {
     nav: {
       ...nav, stepIndex: p.stepIndex, distanceToStep: p.distanceToStep,
       remainingDistance: p.remaining, remainingDuration: p.remainingDuration,
-      offRoute: off, alertAhead,
+      offRoute: off, alertAhead, speedLimit: speedLimitAt(route, p.along),
     },
   });
 

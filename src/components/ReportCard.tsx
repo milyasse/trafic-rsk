@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { formatAge, formatClock, formatDistance } from "../lib/format";
+import { formatAge, formatClock, formatDistance, formatDuration } from "../lib/format";
 import { formatCoords, reverseGeocode } from "../lib/geocode";
 import { haversine } from "../lib/geo";
 import { INCIDENT_ICONS } from "../lib/icons";
 import { isLive, matchesFilters, sortByRecency } from "../lib/reports";
+import { officialColor, officialSeverity, officialStretch, officialType, type OfficialIncident } from "../lib/official";
 import { voteReport } from "../services/data";
 import { cancelPickChoice, commitPick, computeRoutes } from "../services/routes";
-import { getState, selectReport, setState, toast, tr, useStore, useT } from "../store";
+import { getState, selectOfficial, selectReport, setState, toast, tr, useStore, useT } from "../store";
+import { hasKey } from "../i18n";
 import { useBottomInset } from "./BottomSheet";
 import { FavoriteStar } from "./Favorites";
 import { IconClose, IconSide, IncidentBadge } from "./Icons";
@@ -148,6 +150,95 @@ export function ReportCard() {
             </button>
             <span className="tabular muted text-sm font-bold">{index + 1}/{ids.length}</span>
             <button type="button" className="icon-btn" disabled={index === ids.length - 1} onClick={() => selectReport(ids[index + 1])} aria-label={t("report.next")}>
+              <IconSide dir="next" size={22} />
+            </button>
+          </div>
+        )}
+      </div>
+    </Floating>
+  );
+}
+
+/** Ordre des incidents officiels : les plus gênants d'abord. */
+export function sortOfficial(a: OfficialIncident, b: OfficialIncident): number {
+  return officialSeverity(b) - officialSeverity(a) || (b.delay_s ?? 0) - (a.delay_s ?? 0) || (b.length_m ?? 0) - (a.length_m ?? 0);
+}
+
+export function officialTitle(t: ReturnType<typeof useT>, category: number): string {
+  const key = `official.cat.${category}`;
+  return hasKey(key) ? t(key as Parameters<typeof t>[0]) : t("official.cat.0");
+}
+
+/** Fiche d'un incident publié par TomTom : pas de vote, source et horaires affichés. */
+export function OfficialCard() {
+  const t = useT();
+  const id = useStore((s) => s.selectedOfficialId);
+  const o = useStore((s) => (s.selectedOfficialId ? s.officialIncidents[s.selectedOfficialId] : undefined));
+  const all = useStore((s) => s.officialIncidents);
+  const userPos = useStore((s) => s.userPos);
+  const lang = useStore((s) => s.lang);
+  const now = useStore((s) => s.now);
+  const close = useCallback(() => setState({ selectedOfficialId: null }), []);
+  const ids = Object.values(all).sort(sortOfficial).map((x) => x.id);
+  const index = id ? ids.indexOf(id) : -1;
+
+  useEffect(() => {
+    if (!id || ids.length < 2) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && ["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName)) return;
+      if (e.key === "ArrowRight" && index < ids.length - 1) selectOfficial(ids[index + 1]);
+      if (e.key === "ArrowLeft" && index > 0) selectOfficial(ids[index - 1]);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [id, index, ids]);
+
+  if (!id || !o) return null;
+  const title = officialTitle(t, o.category);
+  const color = officialColor(o);
+  const stretch = officialStretch(o);
+  const distance = userPos ? haversine(userPos.lngLat, [o.lng, o.lat]) : null;
+  const magKey = `official.mag.${o.magnitude}`;
+  return (
+    <Floating label={title} onClose={close}>
+      <div className="flex items-center gap-3 pe-12">
+        <IncidentBadge type={officialType(o.category)} size={52} />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[20px] font-bold leading-tight" style={{ color }}>{title}</h2>
+          {stretch && <p className="line-clamp-2 text-[15px] font-bold" dir="auto">{stretch}</p>}
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {hasKey(magKey) && o.magnitude > 0 && (
+          <span className="chip" style={officialSeverity(o) === 3 ? { background: "#FDE8E8", color: "#9B1C1C" } : undefined}>
+            {t(magKey as Parameters<typeof t>[0])}
+          </span>
+        )}
+        {o.delay_s != null && o.delay_s >= 60 && <span className="chip">{t("official.delay", { d: formatDuration(o.delay_s, lang) })}</span>}
+        {o.length_m != null && o.length_m > 0 && <span className="chip">{t("official.length", { d: formatDistance(o.length_m, lang) })}</span>}
+        {distance != null && <span className="chip">{t("report.distanceFromYou", { d: formatDistance(distance, lang) })}</span>}
+      </div>
+
+      {o.description && o.description !== title && <p className="mt-3 text-[17px]">{o.description}</p>}
+
+      <p className="muted mt-3 text-sm">
+        {o.start_time && t("official.since", { age: formatAge(o.start_time, now, lang) })}
+        {o.end_time && ` · ${t("official.until", { time: formatClock(new Date(o.end_time), lang) })}`}
+      </p>
+
+      <div className="mt-2 flex items-center gap-2">
+        <p className="muted min-w-0 flex-1 text-xs leading-snug">
+          {t("official.source", { age: formatAge(o.observed_at, now, lang) })}
+        </p>
+        {ids.length > 1 && index >= 0 && (
+          <div className="flex shrink-0 items-center" aria-label={t("report.browse")}>
+            <button type="button" className="icon-btn" disabled={index === 0} onClick={() => selectOfficial(ids[index - 1])} aria-label={t("report.previous")}>
+              <IconSide dir="prev" size={22} />
+            </button>
+            <span className="tabular muted text-sm font-bold">{index + 1}/{ids.length}</span>
+            <button type="button" className="icon-btn" disabled={index === ids.length - 1} onClick={() => selectOfficial(ids[index + 1])} aria-label={t("report.next")}>
               <IconSide dir="next" size={22} />
             </button>
           </div>

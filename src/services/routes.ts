@@ -4,18 +4,27 @@ import { COVERAGE, inBBox, type LngLat } from "../lib/geo";
 import { formatCoords, nearestPoi, reverseGeocode, type NearbyPoi } from "../lib/geocode";
 import { annotateRoutes, fetchRoutes, orderRoutes, RouteError, type AnnotatedRoute, type ProviderRoute } from "../lib/routing";
 import { getState, setState, subscribe, toast, tr, type PickTarget, type Place } from "../store";
+import { officialAsReport } from "../lib/official";
+import type { Report } from "../lib/reports";
 import { waitForPosition } from "./geolocation";
 
 let controller: AbortController | null = null;
 
-export function annotate(routes: ProviderRoute[]): AnnotatedRoute[] {
+/** Signalements d'usagers + incidents officiels (TomTom), pour l'analyse des itinéraires et les alertes. */
+export function routeHazards(now = Date.now()): Report[] {
   const s = getState();
-  return orderRoutes(annotateRoutes(routes, Object.values(s.reports), s.trafficSegments, Date.now(), s.settings.staleAfterMinutes));
+  return [...Object.values(s.reports), ...Object.values(s.officialIncidents).map((o) => officialAsReport(o, now))];
+}
+
+export function annotate(routes: ProviderRoute[], trafficAware = getState().routeResponse?.traffic_aware ?? false): AnnotatedRoute[] {
+  const s = getState();
+  const now = Date.now();
+  return orderRoutes(annotateRoutes(routes, routeHazards(now), s.trafficSegments, now, s.settings.staleAfterMinutes, trafficAware));
 }
 
 export async function requestRoutes(from: LngLat, to: LngLat, signal?: AbortSignal) {
   const res = await fetchRoutes(FUNCTIONS_URL, SUPABASE_KEY, [from, to], signal);
-  return { response: res, routes: annotate(res.routes) };
+  return { response: res, routes: annotate(res.routes, res.traffic_aware) };
 }
 
 export async function computeRoutes(destination?: Place): Promise<void> {
@@ -57,12 +66,14 @@ export function clearRoutes(): void {
 /** Ré-annoter les itinéraires affichés quand les incidents ou le trafic changent (hors navigation). */
 let lastReports = getState().reports;
 let lastSegments = getState().trafficSegments;
+let lastOfficial = getState().officialIncidents;
 let timer: ReturnType<typeof setTimeout> | null = null;
 subscribe(() => {
   const s = getState();
-  if (s.reports === lastReports && s.trafficSegments === lastSegments) return;
+  if (s.reports === lastReports && s.trafficSegments === lastSegments && s.officialIncidents === lastOfficial) return;
   lastReports = s.reports;
   lastSegments = s.trafficSegments;
+  lastOfficial = s.officialIncidents;
   if (!s.routes.length || timer) return;
   timer = setTimeout(() => {
     timer = null;
@@ -82,7 +93,7 @@ export function setPendingFavoriteKind(kind: "home" | "work" | "other"): void {
 
 /** Démarre le mode « choisir sur la carte ». */
 export function startPick(target: PickTarget): void {
-  setState({ pickMode: target, pickedPoint: null, selectedReportId: null, sheet: "peek" });
+  setState({ pickMode: target, pickedPoint: null, selectedReportId: null, selectedOfficialId: null, sheet: "peek" });
 }
 
 export function cancelPick(): void {

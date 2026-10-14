@@ -1,4 +1,4 @@
-import type { LngLat } from "./geo";
+import { haversine, type LngLat } from "./geo";
 
 /** Villes de la région (identiques à la table public.cities). */
 export const CITIES: { name: string; lngLat: LngLat }[] = [
@@ -28,4 +28,14 @@ export function matchCities(query: string): { name: string; lngLat: LngLat }[] {
   const q = strip(query);
   if (q.length < 2) return [];
   return CITIES.filter((c) => strip(c.name).startsWith(q) || strip(c.name).includes(` ${q}`)).slice(0, 3);
+}
+
+/** Ville de la région la plus proche (à moins de `maxMeters`), pour situer un incident sans ville. */
+export function nearestCity(p: LngLat, maxMeters = 15_000): string | null {
+  let best: { name: string; d: number } | null = null;
+  for (const c of CITIES) {
+    const d = haversine(p, c.lngLat);
+    if (d <= maxMeters && (!best || d < best.d)) best = { name: c.name, d };
+  }
+  return best?.name ?? null;
 }

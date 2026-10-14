@@ -3,13 +3,23 @@ import { isLive, REPORT_META, type Report } from "./reports";
 import { isStale, segmentDelay, type TrafficSegment } from "./traffic";
 import type { Step } from "./instructions";
 
+/** Tronçon ralenti sur un itinéraire calculé avec le trafic (distances en m depuis le départ). */
+export interface TrafficSection { from: number; to: number; category: string; delay: number; magnitude: number; speed: number | null }
+export interface SpeedLimit { from: number; to: number; kmh: number }
+
 export interface ProviderRoute {
   id: string;
   distance: number;
+  /** Durée prévue ; avec un fournisseur « traffic_aware », elle inclut déjà le trafic du moment. */
   duration: number;
   has_tolls: boolean;
   geometry: { type: "LineString"; coordinates: LngLat[] };
   steps: Step[];
+  /** Fournisseur avec trafic (TomTom) : retard dû au trafic en direct, inclus dans duration. */
+  traffic_delay?: number;
+  no_traffic_duration?: number;
+  traffic_sections?: TrafficSection[];
+  speed_limits?: SpeedLimit[];
 }
 
 export interface RouteResponse {
@@ -80,21 +90,33 @@ export function measuredDelayOnLine(
   return matched ? delay : null;
 }
 
+/** Limitation de vitesse (km/h) à une distance donnée du départ, si le fournisseur la donne. */
+export function speedLimitAt(route: Pick<ProviderRoute, "speed_limits">, along: number): number | null {
+  for (const l of route.speed_limits ?? []) if (along >= l.from && along <= l.to) return l.kmh;
+  return null;
+}
+
+/**
+ * Annote les itinéraires : incidents sur le trajet, pénalité indicative, retard mesuré.
+ * `trafficAware` : les durées incluent déjà le trafic et les incidents officiels (identifiants « tt: »),
+ * qui ne sont donc pas comptés une seconde fois.
+ */
 export function annotateRoutes(
   routes: ProviderRoute[], reports: Report[], segments: TrafficSegment[], now: number, staleAfterMinutes: number,
+  trafficAware = false,
 ): AnnotatedRoute[] {
   const annotated = routes.map((r): AnnotatedRoute => {
     const line = r.geometry.coordinates;
     const cumulative = cumulativeDistances(line);
     const incidents = incidentsOnLine(line, cumulative, reports, now);
-    const incidentPenalty = incidents.reduce(
-      (s, i) => s + REPORT_META[i.report.type].routeImpact * 60 * (i.report.severity / 2), 0);
+    const incidentPenalty = incidents.reduce((s, i) =>
+      trafficAware && i.report.id.startsWith("tt:") ? s : s + REPORT_META[i.report.type].routeImpact * 60 * (i.report.severity / 2), 0);
     return {
       ...r,
       cumulative,
       incidents,
       incidentPenalty,
-      measuredDelay: measuredDelayOnLine(line, cumulative, segments, now, staleAfterMinutes),
+      measuredDelay: trafficAware ? null : measuredDelayOnLine(line, cumulative, segments, now, staleAfterMinutes),
       usesMotorway: usesMotorway(r.steps),
       isFastest: false,
       isRecommended: false,

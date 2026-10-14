@@ -27,6 +27,11 @@ function RouteRow({ route, selected, onSelect }: { route: AnnotatedRoute; select
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm">
         {route.isRecommended && <span className="accent font-bold">{t("route.recommended")}</span>}
         {route.isFastest && !route.isRecommended && <span className="font-bold">{t("route.fastest")}</span>}
+        {route.traffic_delay != null && (route.traffic_delay >= 60 ? (
+          <span className="font-bold text-[#C2410C]">{t("route.trafficDelay", { d: formatDuration(route.traffic_delay, lang) })}</span>
+        ) : (
+          <span className="font-bold text-[#2E7D4F]">{t("route.trafficFree")}</span>
+        ))}
         {route.measuredDelay != null && route.measuredDelay > 30 && (
           <span className="font-bold text-[#C2410C]">{t("route.withTraffic", { d: formatDuration(route.duration + route.measuredDelay, lang) })}</span>
         )}
@@ -117,7 +122,9 @@ export function RoutePanel() {
             ))}
           </div>
           <p className="muted text-xs leading-snug">
-            <strong>{t("route.durationNetwork")}.</strong> {response?.traffic_aware ? "" : t("route.durationNetworkHelp")}
+            {response?.traffic_aware
+              ? <strong>{t("route.durationLive")}</strong>
+              : <><strong>{t("route.durationNetwork")}.</strong> {t("route.durationNetworkHelp")}</>}
           </p>
           {response && <p className="muted text-[11px]">{response.attribution}</p>}
           {/* Actions toujours visibles en bas du panneau, quelle que soit sa hauteur */}

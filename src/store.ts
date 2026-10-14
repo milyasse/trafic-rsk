@@ -8,6 +8,7 @@ import type { LngLat } from "./lib/geo";
 import { DEFAULT_FILTERS, type Report, type ReportFilters } from "./lib/reports";
 import type { AnnotatedRoute, RouteResponse } from "./lib/routing";
 import type { TrafficSegment, TrafficStatus } from "./lib/traffic";
+import type { OfficialIncident } from "./lib/official";
 
 export type ThemePref = "auto" | "light" | "dark";
 export type Panel = "search" | "incidents" | "account";
@@ -35,6 +36,8 @@ export interface NavState {
   arrived: boolean;
   following: boolean;
   alertAhead: { reportId: string; distance: number } | null;
+  /** Limitation de vitesse du tronçon en cours (km/h), si le fournisseur d'itinéraire la donne. */
+  speedLimit: number | null;
   suggestion: { route: AnnotatedRoute; avoided: number; deltaSeconds: number } | null;
 }
 
@@ -60,6 +63,8 @@ export interface State {
   reports: Record<string, Report>;
   myReportIds: string[];
   trafficSegments: TrafficSegment[];
+  /** Incidents officiels du fournisseur de trafic (TomTom), actifs uniquement. */
+  officialIncidents: Record<string, OfficialIncident>;
   trafficStatus: TrafficStatus | null;
   settings: Settings;
   cities: string[];
@@ -85,6 +90,7 @@ export interface State {
   panel: Panel;
   sheet: SheetLevel;
   selectedReportId: string | null;
+  selectedOfficialId: string | null;
   pickedPoint: LngLat | null;
   /** Tronçon de route concerné par l'incident sélectionné (déduit des voies affichées sur la carte). */
   reportRoad: { reportId: string; name: string | null; line: LngLat[] } | null;
@@ -142,6 +148,7 @@ let state: State = {
   reports: {},
   myReportIds: [],
   trafficSegments: [],
+  officialIncidents: {},
   trafficStatus: null,
   settings: {
     staleAfterMinutes: 75,
@@ -166,6 +173,7 @@ let state: State = {
   panel: "search",
   sheet: "peek",
   selectedReportId: null,
+  selectedOfficialId: null,
   pickedPoint: null,
   reportRoad: null,
   reportSheet: null,
@@ -238,6 +246,13 @@ export function focusMap(center: LngLat, zoom?: number, card = false): void {
 /** Ouvre la fiche d'un incident : feuille réduite, carte centrée sur l'incident et sa route. */
 export function selectReport(id: string): void {
   const r = state.reports[id];
-  setState({ selectedReportId: id, pickedPoint: null, sheet: "peek" });
+  setState({ selectedReportId: id, selectedOfficialId: null, pickedPoint: null, sheet: "peek" });
   if (r) focusMap([r.lng, r.lat], 16, true);
+}
+
+/** Ouvre la fiche d'un incident officiel (TomTom) : son tracé est déjà connu. */
+export function selectOfficial(id: string): void {
+  const o = state.officialIncidents[id];
+  setState({ selectedOfficialId: id, selectedReportId: null, reportRoad: null, pickedPoint: null, sheet: "peek" });
+  if (o) focusMap([o.lng, o.lat], 15, true);
 }

@@ -14,7 +14,7 @@ import { IncidentsPanel } from "./components/IncidentsPanel";
 import { MapView } from "./components/MapView";
 import { NavigationHud } from "./components/NavigationHud";
 import { LayerMenu, StatusPill, Toasts, TrafficLegend } from "./components/Overlays";
-import { PickChoiceCard, PickedCard, ReportCard } from "./components/ReportCard";
+import { OfficialCard, PickChoiceCard, PickedCard, ReportCard } from "./components/ReportCard";
 import { ReportSheet } from "./components/ReportSheet";
 import { RoutePanel } from "./components/RoutePanel";
 import { SearchBox } from "./components/SearchBox";
@@ -115,7 +115,7 @@ function MainScreen({ dark }: { dark: boolean }) {
   const panel = useStore((s) => s.panel);
   const level = useStore((s) => s.sheet);
   const wide = useIsWide();
-  const cardOpen = useStore((s) => Boolean(s.selectedReportId || s.pickedPoint || s.pickChoice || s.favoriteDraft));
+  const cardOpen = useStore((s) => Boolean(s.selectedReportId || s.selectedOfficialId || s.pickedPoint || s.pickChoice || s.favoriteDraft));
   const userPos = useStore((s) => s.userPos);
   const geoError = useStore((s) => s.geoError);
   const pickMode = useStore((s) => s.pickMode);
@@ -207,6 +207,7 @@ function MainScreen({ dark }: { dark: boolean }) {
       {!nav && <PickBanner />}
       {!nav && <PickChoiceCard />}
       {!nav && <ReportCard />}
+      {!nav && <OfficialCard />}
       {!nav && <PickedCard />}
       <FavoriteSheet />
       <ReportSheet />

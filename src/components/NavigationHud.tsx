@@ -2,6 +2,7 @@ import { useState } from "react";
 import { formatClock, formatDistance, formatDuration } from "../lib/format";
 import { instructionText, maneuverIcon, roadName } from "../lib/instructions";
 import { REPORT_META } from "../lib/reports";
+import { officialAsReport } from "../lib/official";
 import { acceptSuggestion, dismissSuggestion, formatDelta, setFollowing, stopNavigation } from "../services/navigation";
 import { setState, useStore, useT } from "../store";
 import { IconList, IconLocate, IconVolume, IncidentIcon } from "./Icons";
@@ -15,7 +16,16 @@ export function NavigationHud() {
   const now = useStore((s) => s.now);
   const voice = useStore((s) => s.voice);
   const userPos = useStore((s) => s.userPos);
-  const alertReport = useStore((s) => (s.nav?.alertAhead ? s.reports[s.nav.alertAhead.reportId] : undefined));
+  const alertReport = useStore((s) => {
+    const id = s.nav?.alertAhead?.reportId;
+    if (!id) return undefined;
+    if (id.startsWith("tt:")) {
+      const o = s.officialIncidents[id.slice(3)];
+      return o ? officialAsReport(o, s.now) : undefined;
+    }
+    return s.reports[id];
+  });
+  const trafficAware = useStore((s) => s.routeResponse?.traffic_aware ?? false);
   const [showSteps, setShowSteps] = useState(false);
   if (!nav || !route) return null;
 
@@ -77,6 +87,29 @@ export function NavigationHud() {
         )}
       </div>
 
+      {/* Limitation de vitesse (TomTom) et vitesse actuelle */}
+      {!nav.arrived && (nav.speedLimit != null || (userPos?.speed != null && userPos.speed > 0.5)) && (
+        <div className="fixed start-3 bottom-[calc(env(safe-area-inset-bottom)+108px)] z-30 flex items-end gap-2 lg:start-[424px] lg:bottom-8" aria-live="off">
+          {nav.speedLimit != null && (
+            <div className="grid h-[58px] w-[58px] place-items-center rounded-full border-[6px] border-[#D7262E] bg-white text-[22px] font-extrabold text-[#14202B] shadow-float"
+              role="img" aria-label={t("nav.speedLimit", { v: nav.speedLimit })}>
+              {nav.speedLimit}
+            </div>
+          )}
+          {userPos?.speed != null && userPos.speed > 0.5 && (() => {
+            const kmh = Math.round(userPos.speed * 3.6);
+            const over = nav.speedLimit != null && kmh > nav.speedLimit + 3;
+            return (
+              <div className={`surface shadow-float grid h-[50px] min-w-[50px] place-items-center rounded-2xl px-2 leading-none ${over ? "!bg-[#D7262E] text-white" : ""}`}
+                aria-label={t("nav.currentSpeed", { v: kmh })}>
+                <span className="tabular text-[20px] font-extrabold">{kmh}</span>
+                <span className="text-[10px] font-bold opacity-80">km/h</span>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
       {!nav.following && (
         <button type="button" onClick={() => setFollowing(true)} className="map-btn fixed end-4 bottom-32 z-30 !w-auto gap-2 px-4 font-bold lg:bottom-28">
           <span className="flex items-center gap-2"><IconLocate size={20} /> {t("map.recenter")}</span>
@@ -112,7 +145,9 @@ export function NavigationHud() {
             {t("nav.stop")}
           </button>
         </div>
-        <p className="muted mt-1 text-[11px]">{t("route.durationNetwork")}{route.measuredDelay != null ? "" : ` — ${t("route.durationNetworkHelp")}`}</p>
+        <p className="muted mt-1 text-[11px]">
+          {trafficAware ? t("route.durationLive") : `${t("route.durationNetwork")}${route.measuredDelay != null ? "" : ` — ${t("route.durationNetworkHelp")}`}`}
+        </p>
       </div>
     </>
   );

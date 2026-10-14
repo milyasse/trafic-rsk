@@ -1,16 +1,17 @@
 // Trafic RSK — calcul d'itinéraires (proxy serveur)
-// - openrouteservice si le secret ORS_API_KEY est défini (clé jamais exposée au navigateur)
-// - sinon, ou en cas d'échec : serveur public OSRM (best effort, sans garantie)
-// - réponse normalisée, identique quel que soit le fournisseur
+// - TomTom Routing si le secret TOMTOM_API_KEY est défini : durées avec le trafic en direct
+//   (traffic_aware=true), retard dû au trafic, tronçons ralentis, limitations de vitesse.
+//   Plafond journalier (TOMTOM_ROUTING_DAILY, 600 par défaut ; offre gratuite : 20 000/mois).
+// - sinon, plafond atteint ou échec : openrouteservice (ORS_API_KEY), puis serveur public OSRM
+// - réponse normalisée, identique quel que soit le fournisseur ; clés jamais exposées au navigateur
 // - limitation de débit par adresse IP, petit cache mémoire, journal d'état des services
-// Aucun des deux fournisseurs ne tient compte du trafic en direct : traffic_aware=false.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const MOROCCO = { minLng: -17.5, minLat: 20.5, maxLng: -0.9, maxLat: 36.0 };
 const RATE_LIMIT = { max: 20, windowSeconds: 60 };
 const TIMEOUT_MS = 10_000;
-const CACHE_TTL_MS = 5 * 60_000;
+const CACHE_TTL_MS = 3 * 60_000; // court : les durées TomTom dépendent du trafic du moment
 const USER_AGENT = "trafic-rsk/1.0 (+https://github.com/milyasse/trafic-rsk)";
 
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ??
@@ -21,9 +22,15 @@ interface Step {
   type: string; modifier?: string; exit?: number; name: string; ref?: string;
   distance: number; duration: number; location: LngLat; text?: string;
 }
+interface TrafficSection { from: number; to: number; category: string; delay: number; magnitude: number; speed: number | null }
+interface SpeedLimit { from: number; to: number; kmh: number }
 interface Route {
   id: string; distance: number; duration: number; has_tolls: boolean;
   geometry: { type: "LineString"; coordinates: LngLat[] }; steps: Step[];
+  /** TomTom uniquement : retard dû au trafic (déjà inclus dans duration), durée sans trafic. */
+  traffic_delay?: number; no_traffic_duration?: number;
+  /** Tronçons ralentis et limitations de vitesse, en mètres depuis le départ. */
+  traffic_sections?: TrafficSection[]; speed_limits?: SpeedLimit[];
 }
 
 function corsHeaders(req: Request): Record<string, string> {
@@ -86,6 +93,105 @@ function validCoords(input: unknown): LngLat[] | null {
     out.push([lng, lat]);
   }
   return out;
+}
+
+// ---------------------------------------------------------------- TomTom
+const TOMTOM_DAILY = Number(Deno.env.get("TOMTOM_ROUTING_DAILY") ?? "600");
+const TT_MANEUVERS: Record<string, { type: string; modifier?: string }> = {
+  DEPART: { type: "depart" }, ARRIVE: { type: "arrive" },
+  ARRIVE_LEFT: { type: "arrive", modifier: "left" }, ARRIVE_RIGHT: { type: "arrive", modifier: "right" },
+  STRAIGHT: { type: "continue", modifier: "straight" }, FOLLOW: { type: "continue", modifier: "straight" },
+  KEEP_RIGHT: { type: "fork", modifier: "slight right" }, BEAR_RIGHT: { type: "turn", modifier: "slight right" },
+  TURN_RIGHT: { type: "turn", modifier: "right" }, SHARP_RIGHT: { type: "turn", modifier: "sharp right" },
+  KEEP_LEFT: { type: "fork", modifier: "slight left" }, BEAR_LEFT: { type: "turn", modifier: "slight left" },
+  TURN_LEFT: { type: "turn", modifier: "left" }, SHARP_LEFT: { type: "turn", modifier: "sharp left" },
+  MAKE_UTURN: { type: "continue", modifier: "uturn" }, TRY_MAKE_UTURN: { type: "continue", modifier: "uturn" },
+  ENTER_MOTORWAY: { type: "on ramp", modifier: "slight right" }, ENTER_FREEWAY: { type: "on ramp", modifier: "slight right" },
+  ENTER_HIGHWAY: { type: "on ramp", modifier: "slight right" }, ENTRANCE_RAMP: { type: "on ramp", modifier: "slight right" },
+  TAKE_EXIT: { type: "off ramp", modifier: "slight right" },
+  MOTORWAY_EXIT_LEFT: { type: "off ramp", modifier: "slight left" }, MOTORWAY_EXIT_RIGHT: { type: "off ramp", modifier: "slight right" },
+  ROUNDABOUT_CROSS: { type: "roundabout" }, ROUNDABOUT_RIGHT: { type: "roundabout" },
+  ROUNDABOUT_LEFT: { type: "roundabout" }, ROUNDABOUT_BACK: { type: "roundabout" },
+  SWITCH_PARALLEL_ROAD: { type: "continue" }, SWITCH_MAIN_ROAD: { type: "continue" },
+  TAKE_FERRY: { type: "continue" }, WAYPOINT_LEFT: { type: "continue" }, WAYPOINT_RIGHT: { type: "continue" },
+  WAYPOINT_REACHED: { type: "continue" },
+};
+
+function haversine(a: LngLat, b: LngLat): number {
+  const R = 6371008.8, r = Math.PI / 180;
+  const dLat = (b[1] - a[1]) * r, dLng = (b[0] - a[0]) * r;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * r) * Math.cos(b[1] * r) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+
+async function routeTomTom(coords: LngLat[], key: string): Promise<Route[]> {
+  const path = coords.map(([lng, lat]) => `${lat.toFixed(6)},${lng.toFixed(6)}`).join(":");
+  const params = new URLSearchParams({
+    key, traffic: "true", travelMode: "car", routeType: "fastest", language: "fr-FR",
+    instructionsType: "text", computeTravelTimeFor: "all", routeRepresentation: "polyline",
+    maxAlternatives: coords.length === 2 ? "2" : "0",
+  });
+  for (const st of ["traffic", "speedLimit", "toll"]) params.append("sectionType", st);
+  const res = await fetchWithTimeout(`https://api.tomtom.com/routing/1/calculateRoute/${path}/json?${params}`);
+  if (!res.ok) throw new Error(`tomtom_http_${res.status}`);
+  const data = await res.json();
+  // deno-lint-ignore no-explicit-any
+  return (data.routes ?? []).map((r: any, i: number): Route => {
+    const line: LngLat[] = [];
+    for (const leg of r.legs ?? []) {
+      for (const p of leg.points ?? []) {
+        const pt: LngLat = [p.longitude, p.latitude];
+        const last = line[line.length - 1];
+        if (!last || last[0] !== pt[0] || last[1] !== pt[1]) line.push(pt);
+      }
+    }
+    const cum = [0];
+    for (let k = 1; k < line.length; k++) cum.push(cum[k - 1] + haversine(line[k - 1], line[k]));
+    const at = (idx: number) => cum[Math.max(0, Math.min(cum.length - 1, idx ?? 0))];
+
+    // deno-lint-ignore no-explicit-any
+    const instructions: any[] = r.guidance?.instructions ?? [];
+    const steps: Step[] = instructions.map((ins, k) => {
+      const next = instructions[k + 1];
+      const m = TT_MANEUVERS[ins.maneuver] ?? { type: "continue" };
+      return {
+        type: m.type, modifier: m.modifier,
+        exit: ins.roundaboutExitNumber ?? undefined,
+        name: ins.street ?? "",
+        ref: Array.isArray(ins.roadNumbers) && ins.roadNumbers.length ? String(ins.roadNumbers[0]) : undefined,
+        distance: next ? Math.max(0, next.routeOffsetInMeters - ins.routeOffsetInMeters) : 0,
+        duration: next ? Math.max(0, next.travelTimeInSeconds - ins.travelTimeInSeconds) : 0,
+        location: [ins.point?.longitude ?? line[0][0], ins.point?.latitude ?? line[0][1]],
+        text: ins.message ?? undefined,
+      };
+    });
+
+    const traffic: TrafficSection[] = [];
+    const limits: SpeedLimit[] = [];
+    let tolls = false;
+    for (const sec of r.sections ?? []) {
+      const from = at(sec.startPointIndex), to = at(sec.endPointIndex);
+      if (sec.sectionType === "TRAFFIC") {
+        traffic.push({
+          from, to, category: String(sec.simpleCategory ?? "OTHER"),
+          delay: Math.round(sec.delayInSeconds ?? 0), magnitude: Number(sec.magnitudeOfDelay ?? 0),
+          speed: typeof sec.effectiveSpeedInKmh === "number" ? sec.effectiveSpeedInKmh : null,
+        });
+      } else if (sec.sectionType === "SPEED_LIMIT" && typeof sec.maxSpeedLimitInKmh === "number") {
+        limits.push({ from, to, kmh: sec.maxSpeedLimitInKmh });
+      } else if (sec.sectionType === "TOLL_ROAD" || sec.sectionType === "TOLL") {
+        tolls = true;
+      }
+    }
+    const sm = r.summary ?? {};
+    return {
+      id: `tomtom-${i}`, distance: sm.lengthInMeters, duration: sm.travelTimeInSeconds, has_tolls: tolls,
+      geometry: { type: "LineString", coordinates: line }, steps,
+      traffic_delay: sm.trafficDelayInSeconds ?? 0,
+      no_traffic_duration: sm.noTrafficTravelTimeInSeconds ?? undefined,
+      traffic_sections: traffic, speed_limits: limits,
+    };
+  });
 }
 
 // ---------------------------------------------------------------- OSRM
@@ -203,11 +309,32 @@ Deno.serve(async (req) => {
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return json(req, { ...(hit.body as object), cached: true });
 
   const orsKey = Deno.env.get("ORS_API_KEY");
+  const ttKey = Deno.env.get("TOMTOM_API_KEY");
   let routes: Route[] | null = null;
   let provider = "";
   const errors: string[] = [];
 
-  if (orsKey) {
+  if (ttKey) {
+    // Plafond journalier partagé par tous les utilisateurs (fenêtre de 24 h)
+    const { data: underBudget } = await admin.rpc("hit_rate_limit", {
+      p_key: "provider:tomtom-routing", p_max: TOMTOM_DAILY, p_window_seconds: 86_400,
+    });
+    if (underBudget !== false) {
+      try {
+        routes = await routeTomTom(coords, ttKey);
+        if (!routes.length) throw new Error("tomtom_no_route");
+        provider = "tomtom";
+        await logService(provider, true);
+      } catch (e) {
+        routes = null;
+        errors.push(String(e));
+        await logService("tomtom", false, String(e));
+      }
+    } else {
+      errors.push("tomtom_daily_budget");
+    }
+  }
+  if (!routes && orsKey) {
     try {
       routes = await routeOrs(coords, orsKey);
       provider = "openrouteservice";
@@ -231,10 +358,12 @@ Deno.serve(async (req) => {
 
   const body = {
     provider,
-    attribution: provider === "osrm"
+    attribution: provider === "tomtom"
+      ? "Itinéraires et trafic © TomTom"
+      : provider === "osrm"
       ? "Itinéraires © OSRM — données © contributeurs OpenStreetMap (ODbL)"
       : "Itinéraires © openrouteservice.org / HeiGIT — données © contributeurs OpenStreetMap (ODbL)",
-    traffic_aware: false,
+    traffic_aware: provider === "tomtom",
     computed_at: new Date().toISOString(),
     routes,
   };
