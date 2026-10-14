@@ -131,7 +131,10 @@ export function RoutePanel() {
           <p className="muted text-xs leading-snug">
             <strong>{t("route.durationNetwork")}.</strong> {response?.traffic_aware ? "" : t("route.durationNetworkHelp")}
           </p>
-          <div className="flex gap-2">
+          <SaveFavorite />
+          {response && <p className="muted text-[11px]">{response.attribution}</p>}
+          {/* Actions toujours visibles en bas du panneau, quelle que soit sa hauteur */}
+          <div className="surface sticky bottom-0 z-10 -mx-4 -mb-6 flex gap-2 border-t hairline px-4 pt-3 pb-4">
             <button type="button" className="btn btn-primary flex-1" onClick={startNavigation}>
               {t("route.start")}
             </button>
@@ -139,8 +142,6 @@ export function RoutePanel() {
               {t("route.cancel")}
             </button>
           </div>
-          <SaveFavorite />
-          {response && <p className="muted text-[11px]">{response.attribution}</p>}
         </>
       )}
     </section>

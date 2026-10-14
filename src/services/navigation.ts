@@ -40,7 +40,7 @@ export function startNavigation(): void {
       remainingDistance: route.distance, remainingDuration: route.duration,
       offRoute: false, rerouting: false, arrived: false, following: true, alertAhead: null, suggestion: null,
     },
-    sheetExpanded: false,
+    sheet: "peek",
     selectedReportId: null,
   });
   startWatch();

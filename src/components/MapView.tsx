@@ -4,14 +4,15 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { Feature, FeatureCollection, Point } from "geojson";
 import { INITIAL_VIEW, MAX_BOUNDS, type Basemap } from "../config";
 import { initialStyle, resolveStyle } from "../lib/basemaps";
-import { COVERAGE, inBBox, lineBBox, type LngLat } from "../lib/geo";
-import { isLive, REPORT_TYPES, type Report } from "../lib/reports";
+import { COVERAGE, inBBox, lineBBox, roadAround, type LngLat, type RoadCandidate } from "../lib/geo";
+import { isLive, REPORT_TYPES, type Report, type ReportType } from "../lib/reports";
 import { INCIDENT_ICONS } from "../lib/icons";
 import { displayLevel, TRAFFIC_COLORS } from "../lib/traffic";
 import { setFollowing } from "../services/navigation";
 import { applyPick } from "../services/routes";
 import { pickNearestPoi, type NearbyPoi } from "../lib/geocode";
 import { getState, setState, toast, tr, useStore } from "../store";
+import { bottomInset } from "./BottomSheet";
 
 const ROUTE_BLUE = "#1D5FA6";
 const ROUTE_CASING = "#0B3563";
@@ -62,6 +63,8 @@ function setupLayers(map: MLMap) {
   if (!map.getSource("traffic")) map.addSource("traffic", { type: "geojson", data: emptyFC() });
   if (!map.getSource("routes")) map.addSource("routes", { type: "geojson", data: emptyFC() });
   if (!map.getSource("accuracy")) map.addSource("accuracy", { type: "geojson", data: emptyFC() });
+  if (!map.getSource("report-road")) map.addSource("report-road", { type: "geojson", data: emptyFC() });
+  if (!map.getSource("report-focus")) map.addSource("report-focus", { type: "geojson", data: emptyFC() });
   if (!map.getSource("reports")) {
     map.addSource("reports", { type: "geojson", data: emptyFC(), cluster: true, clusterMaxZoom: 12, clusterRadius: 42 });
   }
@@ -94,6 +97,35 @@ function setupLayers(map: MLMap) {
       layout: { "line-cap": "round", "line-join": "round" },
       paint: { "line-color": ROUTE_BLUE, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 4.5, 16, 10] },
     }, before);
+  }
+  // Tronçon concerné par l'incident sélectionné : plein (couleur de l'incident) ou pointillé (route bloquée)
+  if (!map.getLayer("report-road-casing")) {
+    const w = (a: number, b: number) => ["interpolate", ["linear"], ["zoom"], 11, a, 17, b] as unknown as number;
+    map.addLayer({
+      id: "report-road-casing", type: "line", source: "report-road",
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": "#ffffff", "line-width": w(7, 18), "line-opacity": 0.95 },
+    }, before);
+    map.addLayer({
+      id: "report-road-solid", type: "line", source: "report-road", filter: ["!=", ["get", "closed"], true],
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": ["get", "color"], "line-width": w(4, 11), "line-opacity": 0.9 },
+    }, before);
+    map.addLayer({
+      id: "report-road-dashed", type: "line", source: "report-road", filter: ["==", ["get", "closed"], true],
+      layout: { "line-join": "round" },
+      paint: { "line-color": ["get", "color"], "line-width": w(4, 11), "line-dasharray": [1.3, 1] },
+    }, before);
+  }
+  if (!map.getLayer("report-focus")) {
+    map.addLayer({
+      id: "report-focus", type: "circle", source: "report-focus",
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 18, 16, 34],
+        "circle-color": ["get", "color"], "circle-opacity": 0.16,
+        "circle-stroke-color": ["get", "color"], "circle-stroke-width": 2.5, "circle-stroke-opacity": 0.8,
+      },
+    });
   }
   if (!map.getLayer("accuracy")) {
     map.addLayer({
@@ -150,6 +182,51 @@ function renderedPoiNear(map: MLMap, px: { x: number; y: number }, p: LngLat): N
   return pickNearestPoi(p, candidates, 250);
 }
 
+/** Longueur (m, de part et d'autre du point) du tronçon surligné selon le type d'incident. */
+const ROAD_SPAN: Record<ReportType, number> = {
+  road_closed: 220, jam: 350, accident: 120, roadworks: 150, breakdown: 70,
+  obstacle: 70, flood: 150, danger: 100, police: 60, other: 70,
+};
+const NON_ROAD = new Set(["rail", "transit", "ferry", "path", "aerialway", "pier", "bridge"]);
+
+function lineParts(f: MapGeoJSONFeature): LngLat[][] {
+  const g = f.geometry;
+  if (g.type === "LineString") return [g.coordinates as LngLat[]];
+  if (g.type === "MultiLineString") return g.coordinates as LngLat[][];
+  return [];
+}
+
+/** Voie affichée sur la carte la plus proche de l'incident, et son nom (couche « transportation_name »). */
+function roadNear(map: MLMap, r: Report, lang: string): { name: string | null; line: LngLat[] } | null {
+  const p: LngLat = [r.lng, r.lat];
+  const px = map.project(p);
+  const pad = 60;
+  let feats: MapGeoJSONFeature[] = [];
+  try {
+    feats = map.queryRenderedFeatures([[px.x - pad, px.y - pad], [px.x + pad, px.y + pad]]);
+  } catch {
+    return null;
+  }
+  const roads: RoadCandidate[] = [];
+  const names: RoadCandidate[] = [];
+  for (const f of feats) {
+    if (f.layer.type !== "line" && f.layer.type !== "symbol") continue;
+    const cls = String(f.properties?.class ?? "");
+    if (NON_ROAD.has(cls)) continue;
+    if (f.sourceLayer === "transportation" && f.layer.type === "line") {
+      for (const line of lineParts(f)) roads.push({ line, name: null, kind: cls });
+    } else if (f.sourceLayer === "transportation_name") {
+      const props = f.properties ?? {};
+      const name = (lang === "ar" ? props["name:ar"] ?? props.name : props["name:fr"] ?? props["name:latin"] ?? props.name) ?? props.ref ?? null;
+      for (const line of lineParts(f)) names.push({ line, name: name ? String(name) : null, kind: cls });
+    }
+  }
+  const match = roadAround(p, roads, ROAD_SPAN[r.type] * (0.75 + 0.25 * r.severity), 60);
+  if (!match) return null;
+  const named = roadAround(p, names.filter((n) => n.name), 10, 45);
+  return { name: named?.name ?? null, line: match.line };
+}
+
 function circlePolygon(center: LngLat, radiusM: number): Feature {
   const pts: LngLat[] = [];
   const latR = radiusM / 111_320;
@@ -196,6 +273,9 @@ export function MapView({ dark }: { dark: boolean }) {
   const pickMode = useStore((s) => s.pickMode);
   const pickChoice = useStore((s) => s.pickChoice);
   const choiceMarkers = useRef<maplibregl.Marker[]>([]);
+  const selectedReportId = useStore((s) => s.selectedReportId);
+  const reportRoad = useStore((s) => s.reportRoad);
+  const lang = useStore((s) => s.lang);
 
   const effectiveBasemap: Basemap = dark && basemap === "liberty" ? "dark" : basemap;
 
@@ -252,16 +332,27 @@ export function MapView({ dark }: { dark: boolean }) {
       if ((e as unknown as { originalEvent?: Event }).originalEvent) setFollowing(false);
     });
 
-    // Mode « choisir sur la carte » : un simple toucher choisit le point
+    // Mode « choisir sur la carte » : un simple toucher choisit le point.
+    // Sinon, un toucher sur une zone vide ferme la fiche ouverte, ou réduit le panneau.
     map.on("click", (e) => {
-      if (!getState().pickMode) return;
-      const p: LngLat = [e.lngLat.lng, e.lngLat.lat];
-      void applyPick(p, renderedPoiNear(map, e.point, p));
+      const st = getState();
+      if (st.pickMode) {
+        const p: LngLat = [e.lngLat.lng, e.lngLat.lat];
+        void applyPick(p, renderedPoiNear(map, e.point, p));
+        return;
+      }
+      const layers = ["report-points", "report-clusters", "route-alt"].filter((l) => map.getLayer(l));
+      if (layers.length && map.queryRenderedFeatures(e.point, { layers }).length) return;
+      if (st.selectedReportId || st.pickedPoint) setState({ selectedReportId: null, reportRoad: null, pickedPoint: null });
+      else if (st.sheet !== "peek") setState({ sheet: "peek" });
     });
     map.on("click", "report-points", (e: MapLayerMouseEvent) => {
       if (getState().pickMode) return;
       const id = e.features?.[0]?.properties?.id as string | undefined;
-      if (id) setState({ selectedReportId: id, pickedPoint: null });
+      const r = id ? getState().reports[id] : undefined;
+      if (!r) return;
+      setState({ selectedReportId: r.id, pickedPoint: null, reportRoad: null, sheet: "peek" });
+      setState((st) => ({ mapCommand: { id: (st.mapCommand?.id ?? 0) + 1, center: [r.lng, r.lat], card: true } }));
     });
     map.on("click", "report-clusters", async (e: MapLayerMouseEvent) => {
       if (getState().pickMode) return;
@@ -338,6 +429,24 @@ export function MapView({ dark }: { dark: boolean }) {
       };
       (map.getSource("routes") as GeoJSONSource | undefined)?.setData(routesFC);
 
+      const sel = selectedReportId ? reports[selectedReportId] : undefined;
+      const selColor = sel ? INCIDENT_ICONS[sel.type].color : "#000";
+      (map.getSource("report-focus") as GeoJSONSource | undefined)?.setData(sel ? {
+        type: "FeatureCollection",
+        features: [{ type: "Feature", properties: { color: selColor }, geometry: { type: "Point", coordinates: [sel.lng, sel.lat] } }],
+      } : emptyFC());
+      const road = sel && reportRoad?.reportId === sel.id ? reportRoad : null;
+      (map.getSource("report-road") as GeoJSONSource | undefined)?.setData(road ? {
+        type: "FeatureCollection",
+        features: [{ type: "Feature", properties: { color: selColor, closed: sel!.type === "road_closed" }, geometry: { type: "LineString", coordinates: road.line } }],
+      } : emptyFC());
+      if (map.getLayer("report-points")) {
+        map.setLayoutProperty("report-points", "icon-size", [
+          "*", ["match", ["get", "severity"], 3, 1.15, 2, 1, 0.85],
+          ["case", ["==", ["get", "id"], selectedReportId ?? ""], 1.35, 1],
+        ]);
+      }
+
       const acc = userPos && userPos.accuracy > 15 && userPos.accuracy < 2000
         ? { type: "FeatureCollection", features: [circlePolygon(userPos.lngLat, userPos.accuracy)] } as FC
         : emptyFC();
@@ -350,7 +459,25 @@ export function MapView({ dark }: { dark: boolean }) {
     apply();
     map.on("trafic:refresh", apply);
     return () => { map.off("trafic:refresh", apply); };
-  }, [segments, reports, routes, selectedRouteId, userPos, staleAfter, now, showTraffic, showReports]);
+  }, [segments, reports, routes, selectedRouteId, userPos, staleAfter, now, showTraffic, showReports, selectedReportId, reportRoad]);
+
+  // ------------------------------------------------------------ tronçon concerné par l'incident sélectionné
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !selectedReportId) return;
+    let cancelled = false;
+    const compute = () => {
+      if (cancelled || !ready.current) return;
+      const r = getState().reports[selectedReportId];
+      if (!r) return;
+      const found = roadNear(map, r, lang);
+      setState({ reportRoad: found ? { reportId: r.id, ...found } : null });
+    };
+    // Après le déplacement de la carte et le chargement des tuiles
+    map.once("idle", compute);
+    map.triggerRepaint();
+    return () => { cancelled = true; map.off("idle", compute); };
+  }, [selectedReportId, lang]);
 
   // ------------------------------------------------------------ marqueurs
   useEffect(() => {
@@ -449,7 +576,19 @@ export function MapView({ dark }: { dark: boolean }) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapCommand) return;
-    map.flyTo({ center: mapCommand.center, zoom: mapCommand.zoom ?? Math.max(map.getZoom(), 15), duration: 900 });
+    // Décalage pour que le point reste visible entre la barre du haut et la fiche / feuille du bas
+    // (ou à droite du panneau latéral sur ordinateur).
+    const wide = window.innerWidth >= 1024;
+    const rtl = document.documentElement.dir === "rtl";
+    const bottom = wide ? 0 : mapCommand.card ? Math.min(window.innerHeight * 0.5, 340) : bottomInset();
+    const top = wide ? 0 : 72;
+    const offsetX = wide ? (rtl ? -212 : 212) : 0;
+    map.flyTo({
+      center: mapCommand.center,
+      zoom: mapCommand.zoom ?? Math.max(map.getZoom(), 15),
+      offset: [offsetX, (top - bottom) / 2],
+      duration: 900,
+    });
   }, [mapCommand]);
 
   return <div ref={container} style={{ position: "absolute", inset: 0 }} role="application" aria-label="Carte" />;

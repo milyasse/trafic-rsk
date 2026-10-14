@@ -53,6 +53,9 @@ export const IconClock = ({ size, className }: P) => (
 export const IconChevron = ({ size, className, up }: P & { up?: boolean }) => (
   <svg {...base(size)} className={className}><path d={up ? "m6 15 6-6 6 6" : "m6 9 6 6 6-6"} /></svg>
 );
+export const IconSide = ({ size, className, dir }: P & { dir: "prev" | "next" }) => (
+  <svg {...base(size)} className={`rtl:-scale-x-100 ${className ?? ""}`}><path d={dir === "prev" ? "m15 6-6 6 6 6" : "m9 6 6 6-6 6"} /></svg>
+);
 export const IconPin = ({ size, className }: P) => (
   <svg {...base(size)} className={className}><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z" /><circle cx="12" cy="9" r="2.5" /></svg>
 );

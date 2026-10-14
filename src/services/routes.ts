@@ -25,7 +25,7 @@ export async function computeRoutes(destination?: Place): Promise<void> {
   if (!dest) return;
   controller?.abort();
   controller = new AbortController();
-  setState({ routeLoading: true, routeError: null, routes: [], selectedRouteId: null, panel: "search", sheetExpanded: true });
+  setState({ routeLoading: true, routeError: null, routes: [], selectedRouteId: null, panel: "search", sheet: "half" });
 
   let from = s.origin?.lngLat ?? s.userPos?.lngLat ?? null;
   if (!from) {
@@ -76,7 +76,7 @@ subscribe(() => {
 
 /** Démarre le mode « choisir sur la carte ». */
 export function startPick(target: "destination" | "origin"): void {
-  setState({ pickMode: target, pickedPoint: null, selectedReportId: null, sheetExpanded: false });
+  setState({ pickMode: target, pickedPoint: null, selectedReportId: null, sheet: "peek" });
 }
 
 export function cancelPick(): void {
@@ -116,7 +116,7 @@ export async function commitPick(choice: "exact" | "poi"): Promise<void> {
   if (c.target === "origin") {
     setState({ origin: place });
     if (getState().destination) await computeRoutes();
-    else setState({ panel: "search", sheetExpanded: true });
+    else setState({ panel: "search", sheet: "half" });
   } else {
     await computeRoutes(place);
   }

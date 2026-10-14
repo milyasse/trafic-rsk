@@ -76,6 +76,45 @@ export function cumulativeDistances(line: LngLat[]): number[] {
   return out;
 }
 
+/** Portion d'une polyligne comprise entre deux distances curvilignes (m). */
+export function sliceAlong(line: LngLat[], from: number, to: number): LngLat[] {
+  if (line.length < 2) return line.slice();
+  const cum = cumulativeDistances(line);
+  const total = cum[cum.length - 1];
+  const a = Math.max(0, Math.min(from, total));
+  const b = Math.max(a, Math.min(to, total));
+  const at = (d: number): LngLat => {
+    let i = 0;
+    while (i < cum.length - 2 && cum[i + 1] < d) i++;
+    const seg = cum[i + 1] - cum[i];
+    const t = seg > 0 ? (d - cum[i]) / seg : 0;
+    return [line[i][0] + t * (line[i + 1][0] - line[i][0]), line[i][1] + t * (line[i + 1][1] - line[i][1])];
+  };
+  const out: LngLat[] = [at(a)];
+  for (let i = 0; i < line.length; i++) if (cum[i] > a && cum[i] < b) out.push(line[i]);
+  out.push(at(b));
+  return out;
+}
+
+export interface RoadCandidate { line: LngLat[]; name: string | null; kind: string }
+export interface RoadMatch { line: LngLat[]; name: string | null; kind: string; distance: number }
+
+/**
+ * Tronçon de route concerné par un incident : la voie la plus proche du point (à moins de `maxDistance` m),
+ * coupée à `metersEach` m de part et d'autre du point projeté.
+ */
+export function roadAround(p: LngLat, candidates: RoadCandidate[], metersEach: number, maxDistance = 60): RoadMatch | null {
+  let best: { c: RoadCandidate; snap: Snap } | null = null;
+  for (const c of candidates) {
+    if (c.line.length < 2) continue;
+    const snap = snapToLine(p, c.line);
+    if (!best || snap.distance < best.snap.distance) best = { c, snap };
+  }
+  if (!best || best.snap.distance > maxDistance) return null;
+  const line = sliceAlong(best.c.line, best.snap.along - metersEach, best.snap.along + metersEach);
+  return { line, name: best.c.name, kind: best.c.kind, distance: best.snap.distance };
+}
+
 export type BBox = [number, number, number, number]; // minLng, minLat, maxLng, maxLat
 
 export function lineBBox(line: LngLat[], padMeters = 0): BBox {

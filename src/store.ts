@@ -11,6 +11,8 @@ import type { TrafficSegment, TrafficStatus } from "./lib/traffic";
 
 export type ThemePref = "auto" | "light" | "dark";
 export type Panel = "search" | "incidents" | "account";
+/** Hauteur de la feuille inférieure (mobile) : réduite, moitié d'écran, agrandie. */
+export type SheetLevel = "peek" | "half" | "full";
 export type RtStatus = "connecting" | "connected" | "reconnecting" | "offline";
 
 export interface Place { label: string; lngLat: LngLat }
@@ -79,9 +81,11 @@ export interface State {
 
   filters: ReportFilters;
   panel: Panel;
-  sheetExpanded: boolean;
+  sheet: SheetLevel;
   selectedReportId: string | null;
   pickedPoint: LngLat | null;
+  /** Tronçon de route concerné par l'incident sélectionné (déduit des voies affichées sur la carte). */
+  reportRoad: { reportId: string; name: string | null; line: LngLat[] } | null;
   reportSheet: { at: LngLat | null; source: "position" | "center" | "picked" } | null;
   layerMenu: boolean;
   /** Mode « choisir sur la carte » : le prochain toucher sur la carte définit ce point. */
@@ -94,7 +98,7 @@ export interface State {
     poi: { name: string; lngLat: LngLat; distance: number; kind: string } | null;
     loading: boolean;
   } | null;
-  mapCommand: { id: number; center: LngLat; zoom?: number } | null;
+  mapCommand: { id: number; center: LngLat; zoom?: number; card?: boolean } | null;
   toasts: Toast[];
 }
 
@@ -156,9 +160,10 @@ let state: State = {
   nav: null,
   filters: DEFAULT_FILTERS,
   panel: "search",
-  sheetExpanded: false,
+  sheet: "peek",
   selectedReportId: null,
   pickedPoint: null,
+  reportRoad: null,
   reportSheet: null,
   layerMenu: false,
   pickMode: null,
@@ -220,6 +225,14 @@ export function upsertReports(rows: Report[]): void {
   });
 }
 
-export function focusMap(center: LngLat, zoom?: number): void {
-  setState((s) => ({ mapCommand: { id: (s.mapCommand?.id ?? 0) + 1, center, zoom } }));
+/** Centre la carte. `card` : laisser la place à une fiche en bas de l'écran (le point reste visible au-dessus). */
+export function focusMap(center: LngLat, zoom?: number, card = false): void {
+  setState((s) => ({ mapCommand: { id: (s.mapCommand?.id ?? 0) + 1, center, zoom, card } }));
+}
+
+/** Ouvre la fiche d'un incident : feuille réduite, carte centrée sur l'incident et sa route. */
+export function selectReport(id: string): void {
+  const r = state.reports[id];
+  setState({ selectedReportId: id, pickedPoint: null, sheet: "peek" });
+  if (r) focusMap([r.lng, r.lat], 16, true);
 }

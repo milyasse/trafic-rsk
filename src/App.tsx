@@ -7,7 +7,8 @@ import { startWatch } from "./services/geolocation";
 import { cancelPick, computeRoutes, startPick } from "./services/routes";
 import { focusMap, getState, setState, toast, tr, useStore, useT, type Panel } from "./store";
 import { AccountPanel } from "./components/AccountPanel";
-import { IconAlert, IconBriefcase, IconChevron, IconHome, IconLayers, IconList, IconLocate, IconPin, IconRoute, IconUser } from "./components/Icons";
+import { BottomSheet, useIsWide } from "./components/BottomSheet";
+import { IconAlert, IconBriefcase, IconHome, IconLayers, IconList, IconLocate, IconPin, IconRoute, IconUser } from "./components/Icons";
 import { IncidentsPanel } from "./components/IncidentsPanel";
 import { MapView } from "./components/MapView";
 import { NavigationHud } from "./components/NavigationHud";
@@ -121,7 +122,7 @@ function Tabs() {
           role="tab"
           type="button"
           aria-selected={panel === tab.id}
-          onClick={() => setState({ panel: tab.id, sheetExpanded: true })}
+          onClick={() => setState((s) => ({ panel: tab.id, sheet: s.sheet === "peek" ? "half" : s.sheet }))}
           className={`flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-bold ${panel === tab.id ? "bg-accent-soft accent" : "muted"}`}
         >
           {tab.icon}{tab.label}
@@ -135,7 +136,9 @@ function MainScreen({ dark }: { dark: boolean }) {
   const t = useT();
   const nav = useStore((s) => s.nav);
   const panel = useStore((s) => s.panel);
-  const expanded = useStore((s) => s.sheetExpanded);
+  const level = useStore((s) => s.sheet);
+  const wide = useIsWide();
+  const cardOpen = useStore((s) => Boolean(s.selectedReportId || s.pickedPoint || s.pickChoice));
   const userPos = useStore((s) => s.userPos);
   const geoError = useStore((s) => s.geoError);
   const pickMode = useStore((s) => s.pickMode);
@@ -164,47 +167,38 @@ function MainScreen({ dark }: { dark: boolean }) {
       {nav ? <NavigationHud /> : (
         <>
           {/* Recherche (mobile : en haut ; ordinateur : dans le panneau) */}
-          <div className={`absolute inset-x-3 top-[calc(env(safe-area-inset-top)+10px)] z-20 flex-col items-start gap-2 lg:hidden ${pickMode ? "hidden" : "flex"}`}>
+          <div className={`absolute inset-x-3 top-[calc(env(safe-area-inset-top)+10px)] z-30 flex-col items-start gap-2 lg:hidden ${pickMode ? "hidden" : "flex"}`}>
             <SearchBox />
-            <StatusPill />
+            {(level !== "full" || cardOpen) && <StatusPill />}
           </div>
 
-          {/* Panneau : feuille inférieure sur mobile, colonne latérale sur ordinateur */}
-          <aside
-            className={`sheet surface fixed inset-x-0 bottom-0 z-20 flex flex-col pb-[env(safe-area-inset-bottom)] transition-[max-height] duration-300
-              lg:inset-y-3 lg:start-3 lg:end-auto lg:w-[400px] lg:max-h-none
-              ${expanded ? "max-h-[72vh]" : "max-h-[156px]"}`}
-            aria-label={t("app.name")}
+          {/* Panneau : feuille inférieure à 3 hauteurs sur mobile, colonne latérale sur ordinateur.
+              Masquée sur mobile quand une fiche (incident, point choisi) est ouverte. */}
+          <BottomSheet
+            label={t("app.name")}
+            hidden={cardOpen || Boolean(pickMode)}
+            header={
+              <>
+                <div className="hidden flex-col gap-3 p-4 pb-2 lg:flex">
+                  <div className="flex items-baseline justify-between">
+                    <h1 className="panel-title text-[var(--accent)]">{t("app.name")}</h1>
+                    <span className="muted text-sm">{t("app.region")}</span>
+                  </div>
+                  <SearchBox />
+                  <StatusPill />
+                </div>
+                <div className="px-3 lg:px-4"><Tabs /></div>
+              </>
+            }
           >
-            <div className="hidden flex-col gap-3 p-4 pb-2 lg:flex">
-              <div className="flex items-baseline justify-between">
-                <h1 className="panel-title text-[var(--accent)]">{t("app.name")}</h1>
-                <span className="muted text-sm">{t("app.region")}</span>
-              </div>
-              <SearchBox />
-              <StatusPill />
-            </div>
-            <button
-              type="button"
-              className="flex w-full flex-col items-center pt-2 pb-1 lg:hidden"
-              aria-expanded={expanded}
-              aria-label={expanded ? t("common.close") : t("tab.search")}
-              onClick={() => setState({ sheetExpanded: !expanded })}
-            >
-              <span className="h-1.5 w-10 rounded-full bg-[var(--line)]" aria-hidden />
-              <IconChevron size={16} up={!expanded} className="muted mt-0.5" />
-            </button>
-            <div className="px-3 lg:px-4"><Tabs /></div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3 pb-6">
-              <PanelContent panel={panel} />
-            </div>
-          </aside>
+            <PanelContent panel={panel} />
+          </BottomSheet>
         </>
       )}
 
       {/* Boutons flottants */}
-      {!nav && (
-        <div className="absolute end-3 z-10 flex flex-col gap-3 bottom-[172px] lg:bottom-8 lg:end-4">
+      {!nav && (wide || level !== "full" || cardOpen) && (
+        <div className="fab-stack absolute end-3 z-10 flex flex-col gap-3 lg:end-4">
           <button type="button" className="map-btn" aria-label={t("map.layers")} onClick={() => setState({ layerMenu: true })}>
             <IconLayers />
           </button>

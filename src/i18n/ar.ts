@@ -112,4 +112,13 @@ export const ar: Partial<Record<Key, string>> = {
   "tab.search": "المسار",
   "tab.incidents": "الحوادث",
   "tab.account": "الحساب",
+  "report.unknownRoad": "طريق غير محددة",
+  "report.distanceFromYou": "على بعد {d} منك",
+  "report.roadClosedShown": "المقطع المغلق معروض بخط متقطع على الخريطة",
+  "report.roadShown": "المقطع المعني مُبرز على الخريطة",
+  "report.previous": "الحادث السابق",
+  "report.next": "الحادث التالي",
+  "sheet.expand": "توسيع اللوحة",
+  "sheet.collapse": "تصغير اللوحة",
+  "incidents.showOnMap": "عرض على الخريطة",
 };

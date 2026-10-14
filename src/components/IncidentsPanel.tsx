@@ -1,19 +1,24 @@
 import { useState } from "react";
-import { formatAge } from "../lib/format";
+import { formatAge, formatDistance } from "../lib/format";
+import { haversine } from "../lib/geo";
 import { isLive, matchesFilters, REPORT_TYPES, sortByRecency, type Report, type ReportType } from "../lib/reports";
-import { focusMap, setState, useStore, useT } from "../store";
-import { IncidentBadge, IncidentIcon } from "./Icons";
+import { selectReport, setState, useStore, useT } from "../store";
+import { IconSide, IncidentBadge, IncidentIcon } from "./Icons";
 
 export function ReportRow({ r, onClick }: { r: Report; onClick?: () => void }) {
   const t = useT();
   const lang = useStore((s) => s.lang);
   const now = useStore((s) => s.now);
+  const userPos = useStore((s) => s.userPos);
+  const selected = useStore((s) => s.selectedReportId === r.id);
   const live = isLive(r, now);
+  const d = userPos ? haversine(userPos.lngLat, [r.lng, r.lat]) : null;
   return (
     <button
       type="button"
-      onClick={onClick ?? (() => { setState({ selectedReportId: r.id, pickedPoint: null }); focusMap([r.lng, r.lat], 15); })}
-      className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-start hover:bg-[var(--surface-2)] ${live ? "" : "opacity-70"}`}
+      onClick={onClick ?? (() => selectReport(r.id))}
+      aria-label={`${t(`report.type.${r.type}`)} — ${t("incidents.showOnMap")}`}
+      className={`flex min-h-[60px] w-full items-center gap-3 rounded-xl px-2 py-2 text-start hover:bg-[var(--surface-2)] ${selected ? "bg-accent-soft" : ""} ${live ? "" : "opacity-70"}`}
     >
       <IncidentBadge type={r.type} size={40} />
       <span className="min-w-0 flex-1">
@@ -27,6 +32,8 @@ export function ReportRow({ r, onClick }: { r: Report; onClick?: () => void }) {
           {!live && ` · ${t(`report.status.${r.status}`)}`}
         </span>
       </span>
+      {d != null && <span className="tabular muted shrink-0 text-sm font-bold">{formatDistance(d, lang)}</span>}
+      <IconSide dir="next" size={18} className="muted shrink-0" />
     </button>
   );
 }
@@ -54,11 +61,18 @@ export function IncidentsPanel() {
       </div>
 
       {byType.size > 0 && (
-        <p className="text-sm" aria-label={t("incidents.summary")}>
-          {[...byType.entries()].sort((a, b) => b[1] - a[1]).map(([type, n]) => (
-            <span key={type} className="me-3 inline-flex items-center gap-1.5 align-middle"><IncidentIcon type={type} size={18} /> {n} {t(`report.type.${type}`)}</span>
-          ))}
-        </p>
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label={t("incidents.summary")}>
+          {[...byType.entries()].sort((a, b) => b[1] - a[1]).map(([type, n]) => {
+            const on = filters.type === type;
+            return (
+              <button key={type} type="button" aria-pressed={on}
+                onClick={() => setState({ filters: { ...filters, type: on ? "all" : type } })}
+                className={`chip shrink-0 border-2 ${on ? "border-[var(--accent)]" : "border-transparent"}`}>
+                <IncidentIcon type={type} size={18} /> {n} {t(`report.type.${type}`)}
+              </button>
+            );
+          })}
+        </div>
       )}
 
       <div className="segment" role="tablist">
