@@ -12,7 +12,7 @@ import { IconAlert, IconBriefcase, IconHome, IconLayers, IconList, IconLocate, I
 import { IncidentsPanel } from "./components/IncidentsPanel";
 import { MapView } from "./components/MapView";
 import { NavigationHud } from "./components/NavigationHud";
-import { LayerMenu, StatusPill, Toasts } from "./components/Overlays";
+import { LayerMenu, StatusPill, Toasts, TrafficLegend } from "./components/Overlays";
 import { PickChoiceCard, PickedCard, ReportCard } from "./components/ReportCard";
 import { ReportSheet } from "./components/ReportSheet";
 import { RoutePanel } from "./components/RoutePanel";
@@ -169,7 +169,7 @@ function MainScreen({ dark }: { dark: boolean }) {
           {/* Recherche (mobile : en haut ; ordinateur : dans le panneau) */}
           <div className={`absolute inset-x-3 top-[calc(env(safe-area-inset-top)+10px)] z-30 flex-col items-start gap-2 lg:hidden ${pickMode ? "hidden" : "flex"}`}>
             <SearchBox />
-            {(level !== "full" || cardOpen) && <StatusPill />}
+            {(level !== "full" || cardOpen) && <><StatusPill /><TrafficLegend /></>}
           </div>
 
           {/* Panneau : feuille inférieure à 3 hauteurs sur mobile, colonne latérale sur ordinateur.
@@ -186,6 +186,7 @@ function MainScreen({ dark }: { dark: boolean }) {
                   </div>
                   <SearchBox />
                   <StatusPill />
+                  <TrafficLegend compact />
                 </div>
                 <div className="px-3 lg:px-4"><Tabs /></div>
               </>

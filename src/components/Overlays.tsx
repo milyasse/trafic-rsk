@@ -1,5 +1,5 @@
 import { BASEMAPS } from "../config";
-import { availability } from "../lib/traffic";
+import { availability, TRAFFIC_COLORS, type TrafficLevel } from "../lib/traffic";
 import { formatAge } from "../lib/format";
 import { savePreference } from "../services/data";
 import { setState, useStore, useT, type ThemePref } from "../store";
@@ -47,6 +47,29 @@ export function StatusPill() {
         {rt !== "connected" && lastSync && <span className="muted"> · {t("rt.lastSync", { age: formatAge(new Date(lastSync).toISOString(), now, lang) })}</span>}
         <span className="muted"> · {traffic === "unavailable" ? t("traffic.unavailable") : traffic === "stale" ? t("traffic.stale") : t("traffic.live")}</span>
       </span>
+    </div>
+  );
+}
+
+/** Légende des couleurs de trafic, affichée seulement quand des mesures réelles et récentes existent. */
+export function TrafficLegend({ compact = false }: { compact?: boolean }) {
+  const t = useT();
+  const show = useStore((s) => s.showTraffic);
+  const now = useStore((s) => s.now);
+  const stale = useStore((s) => s.settings.staleAfterMinutes);
+  const segments = useStore((s) => s.trafficSegments);
+  const status = useStore((s) => s.trafficStatus);
+  if (!show || availability(status, now, stale) !== "live" || !segments.length) return null;
+  const levels: TrafficLevel[] = ["fluid", "slow", "heavy", "jam"];
+  return (
+    <div className={`${compact ? "" : "surface shadow-float rounded-full px-3 py-1.5"} inline-flex max-w-full flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-bold`}
+      role="note" aria-label={t("traffic.legend")}>
+      {levels.map((l) => (
+        <span key={l} className="inline-flex items-center gap-1.5">
+          <span aria-hidden className="inline-block h-1.5 w-5 rounded-full" style={{ background: TRAFFIC_COLORS[l] }} />
+          {t(`traffic.level.${l}`)}
+        </span>
+      ))}
     </div>
   );
 }

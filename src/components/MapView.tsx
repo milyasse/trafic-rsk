@@ -69,18 +69,6 @@ function setupLayers(map: MLMap) {
     map.addSource("reports", { type: "geojson", data: emptyFC(), cluster: true, clusterMaxZoom: 12, clusterRadius: 42 });
   }
 
-  if (!map.getLayer("traffic-casing")) {
-    map.addLayer({
-      id: "traffic-casing", type: "line", source: "traffic",
-      layout: { "line-cap": "round", "line-join": "round", visibility: getState().showTraffic ? "visible" : "none" },
-      paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 9, 4, 15, 11], "line-opacity": 0.85 },
-    }, before);
-    map.addLayer({
-      id: "traffic-line", type: "line", source: "traffic",
-      layout: { "line-cap": "round", "line-join": "round", visibility: getState().showTraffic ? "visible" : "none" },
-      paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2.5, 15, 7] },
-    }, before);
-  }
   if (!map.getLayer("route-alt")) {
     map.addLayer({
       id: "route-alt", type: "line", source: "routes", filter: ["!=", ["get", "selected"], true],
@@ -96,6 +84,19 @@ function setupLayers(map: MLMap) {
       id: "route-main", type: "line", source: "routes", filter: ["==", ["get", "selected"], true],
       layout: { "line-cap": "round", "line-join": "round" },
       paint: { "line-color": ROUTE_BLUE, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 4.5, 16, 10] },
+    }, before);
+  }
+  // Trafic mesuré, dessiné au-dessus des itinéraires : la route choisie prend la couleur de la charge là où elle est mesurée
+  if (!map.getLayer("traffic-casing")) {
+    map.addLayer({
+      id: "traffic-casing", type: "line", source: "traffic",
+      layout: { "line-cap": "round", "line-join": "round", visibility: getState().showTraffic ? "visible" : "none" },
+      paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 9, 5, 16, 14], "line-opacity": 0.9 },
+    }, before);
+    map.addLayer({
+      id: "traffic-line", type: "line", source: "traffic",
+      layout: { "line-cap": "round", "line-join": "round", visibility: getState().showTraffic ? "visible" : "none" },
+      paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 9, 3, 16, 9] },
     }, before);
   }
   // Tronçon concerné par l'incident sélectionné : plein (couleur de l'incident) ou pointillé (route bloquée)
@@ -341,7 +342,7 @@ export function MapView({ dark }: { dark: boolean }) {
         void applyPick(p, renderedPoiNear(map, e.point, p));
         return;
       }
-      const layers = ["report-points", "report-clusters", "route-alt"].filter((l) => map.getLayer(l));
+      const layers = ["report-points", "report-clusters", "route-alt", "traffic-line"].filter((l) => map.getLayer(l));
       if (layers.length && map.queryRenderedFeatures(e.point, { layers }).length) return;
       if (st.selectedReportId || st.pickedPoint) setState({ selectedReportId: null, reportRoad: null, pickedPoint: null });
       else if (st.sheet !== "peek") setState({ sheet: "peek" });
@@ -366,7 +367,18 @@ export function MapView({ dark }: { dark: boolean }) {
       const id = e.features?.[0]?.properties?.id as string | undefined;
       if (id && !getState().nav && !getState().pickMode) setState({ selectedRouteId: id });
     });
-    for (const layer of ["report-points", "report-clusters", "route-alt"]) {
+    // Toucher un axe mesuré : nom, niveau et vitesse réelle
+    map.on("click", "traffic-line", (e: MapLayerMouseEvent) => {
+      if (getState().pickMode) return;
+      const id = e.features?.[0]?.properties?.id as string | undefined;
+      const seg = getState().trafficSegments.find((x) => x.point_id === id);
+      if (!seg) return;
+      const level = displayLevel(seg, Date.now(), getState().settings.staleAfterMinutes);
+      const speed = seg.current_speed != null && seg.free_flow_speed != null && level !== "unknown"
+        ? ` · ${tr("traffic.speed", { v: Math.round(seg.current_speed), f: Math.round(seg.free_flow_speed) })}` : "";
+      toast(`${seg.name} : ${tr(`traffic.level.${level}`)}${speed}`, "info", undefined, 6000);
+    });
+    for (const layer of ["report-points", "report-clusters", "route-alt", "traffic-line"]) {
       map.on("mouseenter", layer, () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", layer, () => { map.getCanvas().style.cursor = ""; });
     }

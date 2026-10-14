@@ -120,5 +120,6 @@ export const ar: Partial<Record<Key, string>> = {
   "report.next": "الحادث التالي",
   "sheet.expand": "توسيع اللوحة",
   "sheet.collapse": "تصغير اللوحة",
+  "traffic.legend": "دليل ألوان حركة المرور",
   "incidents.showOnMap": "عرض على الخريطة",
 };

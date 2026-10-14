@@ -76,45 +76,45 @@ export function BottomSheet({ header, children, hidden, label }: {
   const level = useStore((s) => s.sheet);
   const ref = useRef<HTMLElement>(null);
   const [dragH, setDragH] = useState<number | null>(null);
-  const drag = useRef<{ y: number; h: number; t: number; moved: boolean; lastY: number; lastT: number } | null>(null);
   const suppressClick = useRef(false);
 
   useBottomInset(ref, !wide && !hidden);
 
+  // Le geste est suivi sur toute la fenêtre : un glissé rapide peut quitter la poignée dès le premier mouvement.
+  const levelRef = useRef(level);
+  levelRef.current = level;
   const onPointerDown = (e: RPointerEvent) => {
-    if (wide) return;
+    if (wide || (e.pointerType === "mouse" && e.button !== 0)) return;
     const h = ref.current?.getBoundingClientRect().height ?? levelPx(level);
-    drag.current = { y: e.clientY, h, t: e.timeStamp, moved: false, lastY: e.clientY, lastT: e.timeStamp };
-  };
-  const onPointerMove = (e: RPointerEvent) => {
-    const d = drag.current;
-    if (!d) return;
-    const dy = e.clientY - d.y;
-    if (!d.moved && Math.abs(dy) < 8) return;
-    if (!d.moved) {
+    const d = { y: e.clientY, h, moved: false, lastY: e.clientY, lastT: e.timeStamp, prevY: e.clientY, prevT: e.timeStamp };
+    const move = (ev: PointerEvent) => {
+      const dy = ev.clientY - d.y;
+      if (!d.moved && Math.abs(dy) < 8) return;
       d.moved = true;
-      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-    }
-    d.lastY = e.clientY;
-    d.lastT = e.timeStamp;
-    setDragH(Math.max(PEEK_PX - 20, Math.min(window.innerHeight - 70, d.h - dy)));
-  };
-  const onPointerUp = (e: RPointerEvent) => {
-    const d = drag.current;
-    drag.current = null;
-    if (!d || !d.moved) return;
-    suppressClick.current = true;
-    const h = d.h - (e.clientY - d.y);
-    const dt = Math.max(1, e.timeStamp - d.lastT);
-    const v = (e.clientY - d.lastY) / dt; // px/ms, > 0 vers le bas
-    const idx = LEVELS.indexOf(level);
-    let next: SheetLevel;
-    // Geste rapide : niveau suivant dans le sens du geste ; sinon niveau le plus proche.
-    if (v < -0.5) next = LEVELS.find((l) => levelPx(l) > h + 1) ?? "full";
-    else if (v > 0.5) next = [...LEVELS].reverse().find((l) => levelPx(l) < h - 1) ?? "peek";
-    else next = LEVELS.reduce((a, b) => (Math.abs(levelPx(b) - h) < Math.abs(levelPx(a) - h) ? b : a), LEVELS[idx]);
-    setDragH(null);
-    setState({ sheet: next });
+      d.prevY = d.lastY; d.prevT = d.lastT;
+      d.lastY = ev.clientY; d.lastT = ev.timeStamp;
+      setDragH(Math.max(PEEK_PX - 20, Math.min(window.innerHeight - 70, d.h - dy)));
+    };
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      if (!d.moved) return;
+      suppressClick.current = true;
+      setTimeout(() => { suppressClick.current = false; }, 0);
+      const h = d.h - (ev.clientY - d.y);
+      const v = (d.lastY - d.prevY) / Math.max(1, d.lastT - d.prevT); // px/ms, > 0 vers le bas
+      let next: SheetLevel;
+      // Geste rapide : niveau suivant dans le sens du geste ; sinon niveau le plus proche.
+      if (v < -0.5) next = LEVELS.find((l) => levelPx(l) > h + 1) ?? "full";
+      else if (v > 0.5) next = [...LEVELS].reverse().find((l) => levelPx(l) < h - 1) ?? "peek";
+      else next = LEVELS.reduce((a, b) => (Math.abs(levelPx(b) - h) < Math.abs(levelPx(a) - h) ? b : a), levelRef.current);
+      setDragH(null);
+      setState({ sheet: next });
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   };
 
   const cycle = () => {
@@ -140,9 +140,6 @@ export function BottomSheet({ header, children, hidden, label }: {
       <div
         className="touch-none select-none lg:touch-auto lg:select-auto"
         onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={() => { drag.current = null; setDragH(null); }}
         onClickCapture={(e) => { if (suppressClick.current) { e.stopPropagation(); e.preventDefault(); suppressClick.current = false; } }}
       >
         <button

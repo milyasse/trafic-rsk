@@ -195,6 +195,7 @@ export const en: Partial<Record<Key, string>> = {
   "report.next": "Next incident",
   "sheet.expand": "Expand panel",
   "sheet.collapse": "Collapse panel",
+  "traffic.legend": "Traffic legend",
   "report.newNearby": "New: {type} {d} away",
   "report.status.active": "Active",
   "report.status.confirmed": "Confirmed",
