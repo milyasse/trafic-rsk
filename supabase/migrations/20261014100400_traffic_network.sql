@@ -1,7 +1,7 @@
 -- Réseau d'axes mesurés élargi : grands axes des villes prioritaires (12 → 32 points).
 -- Chaque point est rattaché par le fournisseur au tronçon routier le plus proche.
--- Budget : 32 points × 32 actualisations (toutes les 30 min, 6 h – 22 h) ≈ 1 024 requêtes/jour,
--- plafonné à 1 200 (offre gratuite TomTom : 2 500 requêtes/jour).
+-- Budget : 32 points × 16 actualisations (toutes les heures, 6 h – 22 h) = 512 requêtes/jour
+-- ≈ 15 400/mois, sous l'offre gratuite TomTom (20 000/mois) ; plafond journalier 660.
 insert into public.traffic_points (id, name, city, lat, lng) values
   ('rabat-pont-moulay-hassan', 'Pont Mohammed VI (rocade Rabat ↔ Salé)', 'Rabat', 34.0080, -6.7930),
   ('rabat-agdal-ibn-sina', 'Avenue Ibn Sina, Agdal', 'Rabat', 33.9990, -6.8510),
@@ -26,5 +26,5 @@ insert into public.traffic_points (id, name, city, lat, lng) values
 on conflict (id) do nothing;
 
 update public.app_settings
-set value = jsonb_set(value, '{daily_budget}', '1200'::jsonb)
-where key = 'traffic' and (value->>'daily_budget')::int < 1200;
+set value = value || '{"refresh_minutes":60,"daily_budget":660}'::jsonb
+where key = 'traffic';

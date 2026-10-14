@@ -32,7 +32,7 @@ Navigateur ── REST ───►│ PostgREST ── RLS ──► tables (re
 ### Trois fréquences distinctes
 
 1. **Réception des événements** : instantanée. Chaque signalement, vote, expiration ou nouvelle mesure de trafic est poussé par Supabase Realtime à tous les clients connectés.
-2. **Interrogation du fournisseur de trafic** : côté serveur uniquement, au plus toutes les `refresh_minutes` (30 par défaut), pendant les heures actives (6 h – 22 h), dans la limite d'un budget journalier (600 requêtes). Le verrou `claim_traffic_refresh()` garantit qu'un seul appel part même si 1 000 navigateurs demandent en même temps. Aucun appel par déplacement de carte ni par utilisateur.
+2. **Interrogation du fournisseur de trafic** : côté serveur uniquement, au plus toutes les `refresh_minutes` (60 par défaut, 32 axes), pendant les heures actives (6 h – 22 h), dans la limite d'un budget journalier (660 requêtes). Le verrou `claim_traffic_refresh()` garantit qu'un seul appel part même si 1 000 navigateurs demandent en même temps. Aucun appel par déplacement de carte ni par utilisateur.
 3. **Rafraîchissement de l'interface** : l'âge des données et les expirations sont recalculés toutes les 30 s ; chaque client demande au serveur s'il faut rafraîchir le trafic toutes les 5 min (le serveur décide) ; resynchronisation complète au retour sur l'onglet, au retour du réseau et après une reconnexion Realtime.
 
 ### Fraîcheur et honnêteté des données
