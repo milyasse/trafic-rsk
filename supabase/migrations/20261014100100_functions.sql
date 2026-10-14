@@ -185,19 +185,6 @@ returns setof uuid language sql stable security definer set search_path = '' as 
 $$;
 
 -- ---------------------------------------------------------------------
--- Compte : suppression des données personnelles
--- ---------------------------------------------------------------------
-create or replace function public.delete_my_account()
-returns void language plpgsql security definer set search_path = '' as $$
-declare v_uid uuid := auth.uid();
-begin
-  if v_uid is null then raise exception 'auth_required' using errcode = '28000'; end if;
-  -- Les signalements restent (anonymes) ; le lien d'auteur, les votes,
-  -- favoris, historique et profil sont supprimés en cascade.
-  delete from auth.users where id = v_uid;
-end $$;
-
--- ---------------------------------------------------------------------
 -- Administration
 -- ---------------------------------------------------------------------
 create or replace function public.admin_stats()
@@ -325,14 +312,6 @@ begin
   return n;
 end $$;
 
-create or replace function private.purge_old_data()
-returns void language plpgsql security definer set search_path = '' as $$
-declare r jsonb := private.setting('retention_days');
-begin
-  delete from public.reports where created_at < now() - make_interval(days => (r->>'reports')::int);
-  delete from public.destination_history where created_at < now() - make_interval(days => (r->>'history')::int);
-  delete from private.rate_limits where window_start < now() - interval '1 day';
-end $$;
 
 -- Horodatage des modifications de paramètres
 create or replace function private.touch_setting()

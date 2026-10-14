@@ -93,7 +93,6 @@ grant execute on function public.is_admin() to anon, authenticated;
 grant execute on function public.create_report(text, integer, double precision, double precision, text) to authenticated;
 grant execute on function public.vote_report(uuid, text) to authenticated;
 grant execute on function public.my_report_ids() to authenticated;
-grant execute on function public.delete_my_account() to authenticated;
 grant execute on function public.admin_stats() to authenticated;
 
 grant execute on function public.hit_rate_limit(text, integer, integer) to service_role;
@@ -108,4 +107,3 @@ alter publication supabase_realtime add table public.reports, public.traffic_seg
 
 -- Tâches planifiées
 select cron.schedule('trafic-rsk-expire-reports', '*/2 * * * *', $$select private.expire_reports()$$);
-select cron.schedule('trafic-rsk-purge', '17 3 * * *', $$select private.purge_old_data()$$);
