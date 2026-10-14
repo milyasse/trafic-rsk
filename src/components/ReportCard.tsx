@@ -8,6 +8,7 @@ import { voteReport } from "../services/data";
 import { cancelPickChoice, commitPick, computeRoutes } from "../services/routes";
 import { getState, selectReport, setState, toast, tr, useStore, useT } from "../store";
 import { useBottomInset } from "./BottomSheet";
+import { FavoriteStar } from "./Favorites";
 import { IconClose, IconSide, IncidentBadge } from "./Icons";
 
 function Floating({ children, label, onClose }: { children: ReactNode; label: string; onClose: () => void }) {
@@ -175,6 +176,7 @@ export function PickedCard() {
       <h2 className="pe-10 text-lg font-bold">{t("map.pickedPoint")}</h2>
       <p className="tabular font-bold">{formatCoords(picked)}</p>
       <p className="muted text-sm">{address ?? t("common.loading")}</p>
+      <FavoriteStar className="mt-2" label={address?.split(",")[0] ?? formatCoords(picked)} address={label} lngLat={picked} />
       <div className="mt-3 flex gap-2">
         <button type="button" className="btn btn-primary flex-1"
           onClick={() => { setState({ pickedPoint: null }); void computeRoutes({ label, lngLat: picked }); }}>
@@ -204,6 +206,7 @@ export function PickChoiceCard() {
   const lang = useStore((s) => s.lang);
   if (!c) return null;
   const coords = formatCoords(c.point);
+  const title = t(c.target === "origin" ? "pick.chosenOrigin" : c.target === "favorite" ? "pick.chosenFavorite" : "pick.chosenDestination");
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(coords);
@@ -211,8 +214,8 @@ export function PickChoiceCard() {
     } catch { /* presse-papiers indisponible */ }
   };
   return (
-    <Floating label={t(c.target === "origin" ? "pick.chosenOrigin" : "pick.chosenDestination")} onClose={cancelPickChoice}>
-      <h2 className="pe-10 text-lg font-bold">{t(c.target === "origin" ? "pick.chosenOrigin" : "pick.chosenDestination")}</h2>
+    <Floating label={title} onClose={cancelPickChoice}>
+      <h2 className="pe-10 text-lg font-bold">{title}</h2>
       <p className="muted mt-1 text-sm">{t("pick.coords")}</p>
       <div className="flex items-center gap-2">
         <span className="tabular text-lg font-bold">{coords}</span>
@@ -221,7 +224,7 @@ export function PickChoiceCard() {
       {c.address && <p className="muted text-sm">{t("pick.near", { address: c.address })}</p>}
 
       <button type="button" onClick={() => void commitPick("exact")} className="btn btn-primary mt-3 w-full">
-        {t("pick.useExact")}
+        {t(c.target === "favorite" ? "pick.useForFavorite" : "pick.useExact")}
       </button>
 
       <p className="muted mt-3 text-sm">{t("pick.poiTitle")}</p>

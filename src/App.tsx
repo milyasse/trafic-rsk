@@ -4,11 +4,12 @@ import { LANGS } from "./i18n";
 import { supabase } from "./lib/supabase";
 import { loadUserData, startLiveData } from "./services/data";
 import { startWatch } from "./services/geolocation";
-import { cancelPick, computeRoutes, startPick } from "./services/routes";
+import { cancelPick, startPick } from "./services/routes";
 import { focusMap, getState, setState, toast, tr, useStore, useT, type Panel } from "./store";
 import { AccountPanel } from "./components/AccountPanel";
 import { BottomSheet, useIsWide } from "./components/BottomSheet";
-import { IconAlert, IconBriefcase, IconHome, IconLayers, IconList, IconLocate, IconPin, IconRoute, IconUser } from "./components/Icons";
+import { IconAlert, IconLayers, IconList, IconLocate, IconPin, IconRoute, IconUser } from "./components/Icons";
+import { FavoriteSheet, FavoritesSection } from "./components/Favorites";
 import { IncidentsPanel } from "./components/IncidentsPanel";
 import { MapView } from "./components/MapView";
 import { NavigationHud } from "./components/NavigationHud";
@@ -44,30 +45,6 @@ function useHashRoute(): string {
   return hash;
 }
 
-function QuickPlaces() {
-  const t = useT();
-  const favorites = useStore((s) => s.favorites);
-  const home = favorites.find((f) => f.kind === "home");
-  const work = favorites.find((f) => f.kind === "work");
-  if (!home && !work) return null;
-  return (
-    <div className="flex gap-2">
-      {home && (
-        <button type="button" className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border hairline font-bold"
-          onClick={() => void computeRoutes({ label: home.label, lngLat: [home.lng, home.lat] })}>
-          <IconHome size={18} /> {t("search.home")}
-        </button>
-      )}
-      {work && (
-        <button type="button" className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border hairline font-bold"
-          onClick={() => void computeRoutes({ label: work.label, lngLat: [work.lng, work.lat] })}>
-          <IconBriefcase size={18} /> {t("search.work")}
-        </button>
-      )}
-    </div>
-  );
-}
-
 function PickButton({ target }: { target: "destination" | "origin" }) {
   const t = useT();
   return (
@@ -86,7 +63,7 @@ function PickBanner() {
     <div className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+10px)] z-40 flex justify-center lg:start-[416px]">
       <div className="pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl bg-[var(--color-oudaya)] px-4 py-3 text-white shadow-xl" role="status">
         <IconPin size={22} />
-        <span className="font-bold">{t(mode === "origin" ? "pick.bannerOrigin" : "pick.bannerDestination")}</span>
+        <span className="font-bold">{t(mode === "origin" ? "pick.bannerOrigin" : mode === "favorite" ? "pick.bannerFavorite" : "pick.bannerDestination")}</span>
         <button type="button" onClick={cancelPick} className="ms-auto rounded-lg bg-white/20 px-3 py-1.5 font-bold">{t("pick.cancel")}</button>
       </div>
     </div>
@@ -99,7 +76,7 @@ function PanelContent({ panel }: { panel: Panel }) {
   if (panel === "account") return <AccountPanel />;
   return destination ? <RoutePanel /> : (
     <div className="flex flex-col gap-5">
-      <QuickPlaces />
+      <FavoritesSection />
       <PickButton target="destination" />
       <TrafficPanel />
     </div>
@@ -138,7 +115,7 @@ function MainScreen({ dark }: { dark: boolean }) {
   const panel = useStore((s) => s.panel);
   const level = useStore((s) => s.sheet);
   const wide = useIsWide();
-  const cardOpen = useStore((s) => Boolean(s.selectedReportId || s.pickedPoint || s.pickChoice));
+  const cardOpen = useStore((s) => Boolean(s.selectedReportId || s.pickedPoint || s.pickChoice || s.favoriteDraft));
   const userPos = useStore((s) => s.userPos);
   const geoError = useStore((s) => s.geoError);
   const pickMode = useStore((s) => s.pickMode);
@@ -231,6 +208,7 @@ function MainScreen({ dark }: { dark: boolean }) {
       {!nav && <PickChoiceCard />}
       {!nav && <ReportCard />}
       {!nav && <PickedCard />}
+      <FavoriteSheet />
       <ReportSheet />
       <LayerMenu />
       <Toasts />

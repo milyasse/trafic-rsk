@@ -3,7 +3,7 @@ import { FUNCTIONS_URL, SUPABASE_KEY } from "../config";
 import { COVERAGE, inBBox, type LngLat } from "../lib/geo";
 import { formatCoords, nearestPoi, reverseGeocode, type NearbyPoi } from "../lib/geocode";
 import { annotateRoutes, fetchRoutes, orderRoutes, RouteError, type AnnotatedRoute, type ProviderRoute } from "../lib/routing";
-import { getState, setState, subscribe, toast, tr, type Place } from "../store";
+import { getState, setState, subscribe, toast, tr, type PickTarget, type Place } from "../store";
 import { waitForPosition } from "./geolocation";
 
 let controller: AbortController | null = null;
@@ -74,8 +74,14 @@ subscribe(() => {
   }, 1500);
 });
 
+/** Type du favori en cours d'ajout depuis la carte (Domicile, Travail ou autre lieu). */
+let pendingFavoriteKind: "home" | "work" | "other" = "other";
+export function setPendingFavoriteKind(kind: "home" | "work" | "other"): void {
+  pendingFavoriteKind = kind;
+}
+
 /** Démarre le mode « choisir sur la carte ». */
-export function startPick(target: "destination" | "origin"): void {
+export function startPick(target: PickTarget): void {
   setState({ pickMode: target, pickedPoint: null, selectedReportId: null, sheet: "peek" });
 }
 
@@ -113,6 +119,12 @@ export async function commitPick(choice: "exact" | "poi"): Promise<void> {
     ? { label: c.poi.name, lngLat: c.poi.lngLat }
     : { label: c.address ? `${formatCoords(c.point)} — ${c.address}` : formatCoords(c.point), lngLat: c.point };
   setState({ pickChoice: null });
+  if (c.target === "favorite") {
+    const poi = choice === "poi" && c.poi;
+    setState({ favoriteDraft: { label: poi ? c.poi!.name : c.address ?? formatCoords(c.point), address: c.address ?? formatCoords(c.point), lngLat: place.lngLat, kind: pendingFavoriteKind } });
+    pendingFavoriteKind = "other";
+    return;
+  }
   if (c.target === "origin") {
     setState({ origin: place });
     if (getState().destination) await computeRoutes();

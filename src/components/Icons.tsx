@@ -38,8 +38,8 @@ export const IconVolume = ({ size, className, off }: P & { off?: boolean }) => (
     {off ? <path d="m17 9 5 6M22 9l-5 6" /> : <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" />}
   </svg>
 );
-export const IconStar = ({ size, className }: P) => (
-  <svg {...base(size)} className={className}><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3z" /></svg>
+export const IconStar = ({ size, className, filled }: P & { filled?: boolean }) => (
+  <svg {...base(size)} className={className} fill={filled ? "currentColor" : "none"}><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3z" /></svg>
 );
 export const IconHome = ({ size, className }: P) => (
   <svg {...base(size)} className={className}><path d="M3 11 12 4l9 7" /><path d="M5 10v10h14V10" /></svg>

@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { LANGS, type Lang } from "../i18n";
 import { supabase } from "../lib/supabase";
-import { clearHistory, deleteAccount, deleteFavorite, loadUserData, savePreference, setHistoryConsent } from "../services/data";
-import { computeRoutes } from "../services/routes";
-import { toast, tr, useStore, useT } from "../store";
+import { clearHistory, deleteAccount, loadUserData, savePreference, setHistoryConsent } from "../services/data";
+import { clearRoutes } from "../services/routes";
+import { setState, toast, tr, useStore, useT } from "../store";
 
 export function AuthForm({ initialMode = "signIn" }: { initialMode?: "signIn" | "signUp" }) {
   const t = useT();
@@ -133,24 +133,14 @@ export function AccountPanel() {
 
       {profile && !anonymous && (
         <>
-          <div>
-            <h3 className="panel-title">{t("account.favorites")}</h3>
-            {favorites.length === 0 ? (
-              <p className="muted text-sm">{t("account.noFavorites")}</p>
-            ) : (
-              <ul className="mt-1 flex flex-col">
-                {favorites.map((f) => (
-                  <li key={f.id} className="flex items-center gap-2 py-1">
-                    <button type="button" className="min-w-0 flex-1 truncate text-start font-bold" onClick={() => void computeRoutes({ label: f.label, lngLat: [f.lng, f.lat] })}>
-                      {f.kind === "home" ? `${t("search.home")} · ` : f.kind === "work" ? `${t("search.work")} · ` : ""}{f.label}
-                    </button>
-                    <button type="button" className="muted text-sm underline-offset-4 hover:underline" onClick={() => void deleteFavorite(f.id)}>
-                      {t("account.deleteFavorite")}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+          <div className="flex items-center justify-between gap-3">
+            <span>
+              <span className="panel-title block">{t("account.favorites")}</span>
+              <span className="muted text-sm">{t("favorites.count", { n: favorites.length })}</span>
+            </span>
+            <button type="button" className="btn btn-secondary shrink-0" onClick={() => { clearRoutes(); setState({ panel: "search" }); }}>
+              {t("favorites.manage")}
+            </button>
           </div>
           <div>
             <label className="flex items-start justify-between gap-3">

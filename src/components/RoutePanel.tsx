@@ -1,12 +1,12 @@
-import { useState } from "react";
 import { formatClock, formatDistance, formatDuration } from "../lib/format";
 import type { AnnotatedRoute } from "../lib/routing";
-import { saveFavorite } from "../services/data";
 import { startNavigation } from "../services/navigation";
 import { clearRoutes, computeRoutes, startPick } from "../services/routes";
-import { setState, useStore, useT } from "../store";
+import { setState, useStore, useT, type Favorite } from "../store";
+import { haversine } from "../lib/geo";
+import { FavoriteStar } from "./Favorites";
 import { SearchBox } from "./SearchBox";
-import { IncidentIcon } from "./Icons";
+import { IconBriefcase, IconHome, IconStar, IncidentIcon } from "./Icons";
 
 function RouteRow({ route, selected, onSelect }: { route: AnnotatedRoute; selected: boolean; onSelect: () => void }) {
   const t = useT();
@@ -48,44 +48,30 @@ function RouteRow({ route, selected, onSelect }: { route: AnnotatedRoute; select
   );
 }
 
-function SaveFavorite() {
+/** Départ en un toucher : ma position ou un de mes favoris. */
+function OriginFavorites() {
   const t = useT();
+  const favorites = useStore((s) => s.favorites);
+  const origin = useStore((s) => s.origin);
   const destination = useStore((s) => s.destination);
-  const profile = useStore((s) => s.profile);
-  const session = useStore((s) => s.session);
-  const [open, setOpen] = useState(false);
-  const [kind, setKind] = useState<"home" | "work" | "other">("other");
-  const [label, setLabel] = useState(destination?.label ?? "");
-  if (!destination || !profile || session?.user.is_anonymous) return null;
-  if (!open) {
-    return (
-      <button type="button" className="accent text-sm font-bold underline-offset-4 hover:underline" onClick={() => { setLabel(destination.label.slice(0, 80)); setOpen(true); }}>
-        {t("route.saveFavorite")}
-      </button>
-    );
-  }
+  const list = favorites.filter((f) => !destination || haversine([f.lng, f.lat], destination.lngLat) > 30);
+  if (!list.length) return null;
+  const isOrigin = (f: Favorite) => origin != null && haversine([f.lng, f.lat], origin.lngLat) < 30;
   return (
-    <form
-      className="flex flex-wrap items-end gap-2"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (await saveFavorite(kind, label.trim() || destination.label, destination.label, destination.lngLat)) setOpen(false);
-      }}
-    >
-      <label className="text-sm">
-        <span className="muted block">{t("account.favoriteKind")}</span>
-        <select className="surface h-10 rounded-lg border hairline px-2" value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
-          <option value="home">{t("search.home")}</option>
-          <option value="work">{t("search.work")}</option>
-          <option value="other">{t("account.other")}</option>
-        </select>
-      </label>
-      <label className="min-w-40 flex-1 text-sm">
-        <span className="muted block">{t("account.favoriteLabel")}</span>
-        <input className="surface h-10 w-full rounded-lg border hairline px-2" maxLength={80} value={label} onChange={(e) => setLabel(e.target.value)} />
-      </label>
-      <button type="submit" className="bg-accent h-10 rounded-lg px-4 font-bold text-white">{t("account.save")}</button>
-    </form>
+    <div className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1" aria-label={t("favorites.title")}>
+      <button type="button" className={`chip shrink-0 border-2 ${origin == null ? "border-[var(--accent)]" : "border-transparent"}`}
+        aria-pressed={origin == null} onClick={() => { setState({ origin: null }); void computeRoutes(); }}>
+        {t("route.myPosition")}
+      </button>
+      {list.map((f) => (
+        <button key={f.id} type="button" aria-pressed={isOrigin(f)}
+          className={`chip shrink-0 border-2 ${isOrigin(f) ? "border-[var(--accent)]" : "border-transparent"}`}
+          onClick={() => { setState({ origin: { label: f.label, lngLat: [f.lng, f.lat] } }); void computeRoutes(); }}>
+          {f.kind === "home" ? <IconHome size={16} /> : f.kind === "work" ? <IconBriefcase size={16} /> : <IconStar size={16} />}
+          <span className="max-w-[140px] truncate">{f.label}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -101,12 +87,14 @@ export function RoutePanel() {
 
   return (
     <section aria-labelledby="route-title" className="flex flex-col gap-3">
-      <div>
-        <h2 id="route-title" className="text-lg font-bold leading-tight">{destination.label}</h2>
+      <div className="flex items-start gap-2">
+        <h2 id="route-title" className="min-w-0 flex-1 text-lg font-bold leading-tight">{destination.label}</h2>
+        <FavoriteStar className="shrink-0" label={destination.label.split(",")[0].slice(0, 80)} address={destination.label} lngLat={destination.lngLat} />
       </div>
       <div>
         <span className="muted mb-1 block text-sm">{t("route.from")}</span>
         <SearchBox target="origin" />
+        <OriginFavorites />
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm font-bold">
           <button type="button" className="accent underline-offset-4 hover:underline" onClick={() => startPick("origin")}>{t("pick.origin")}</button>
           <button type="button" className="accent underline-offset-4 hover:underline" onClick={() => startPick("destination")}>{t("pick.destination")}</button>
@@ -131,7 +119,6 @@ export function RoutePanel() {
           <p className="muted text-xs leading-snug">
             <strong>{t("route.durationNetwork")}.</strong> {response?.traffic_aware ? "" : t("route.durationNetworkHelp")}
           </p>
-          <SaveFavorite />
           {response && <p className="muted text-[11px]">{response.attribution}</p>}
           {/* Actions toujours visibles en bas du panneau, quelle que soit sa hauteur */}
           <div className="surface sticky bottom-0 z-10 -mx-4 -mb-6 flex gap-2 border-t hairline px-4 pt-3 pb-4">

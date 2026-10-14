@@ -188,7 +188,7 @@ export async function loadUserData(): Promise<void> {
   const { data: sess } = await supabase.auth.getSession();
   const user = sess.session?.user;
   if (!user) {
-    setState({ profile: null, favorites: [], history: [], myReportIds: [] });
+    setState({ profile: null, favorites: sortFavorites(readLocalFavorites()), history: [], myReportIds: [] });
     return;
   }
   const [{ data: profile }, { data: favorites }, { data: history }, { data: mine }] = await Promise.all([
@@ -198,9 +198,16 @@ export async function loadUserData(): Promise<void> {
     supabase.rpc("my_report_ids"),
   ]);
   const p = profile as Profile | null;
+  let favs = (favorites ?? []) as Favorite[];
+  if (user.is_anonymous || !p) {
+    favs = readLocalFavorites();
+  } else if (await migrateLocalFavorites(favs)) {
+    const { data } = await supabase.from("favorites").select("id,kind,label,address,lat,lng").order("created_at");
+    favs = (data ?? []) as Favorite[];
+  }
   setState({
     profile: p,
-    favorites: (favorites ?? []) as Favorite[],
+    favorites: sortFavorites(favs),
     history: (history ?? []) as { id: string; label: string; lat: number; lng: number; created_at: string }[],
     myReportIds: ((mine ?? []) as unknown[]).map((x) => (typeof x === "string" ? x : String(Object.values(x as object)[0]))),
   });
@@ -262,26 +269,97 @@ export async function voteReport(id: string, vote: "confirm" | "gone" | "abuse")
 }
 
 // ------------------------------------------------------------------ favoris / historique
+// Avec un compte : favoris enregistrés sur le serveur (privés, RLS). Sans compte : sur cet appareil
+// uniquement ; ils sont transférés sur le compte à la première connexion.
+const LOCAL_FAV_KEY = "trafic-rsk:favorites";
+
+export function hasAccount(): boolean {
+  const s = getState();
+  return Boolean(s.session && !s.session.user.is_anonymous && s.profile);
+}
+
+function readLocalFavorites(): Favorite[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_FAV_KEY);
+    const list = raw ? (JSON.parse(raw) as Favorite[]) : [];
+    return Array.isArray(list) ? list.filter((f) => f && typeof f.lat === "number" && typeof f.lng === "number") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalFavorites(list: Favorite[]): void {
+  try {
+    if (list.length) localStorage.setItem(LOCAL_FAV_KEY, JSON.stringify(list));
+    else localStorage.removeItem(LOCAL_FAV_KEY);
+  } catch { /* stockage indisponible : favoris gardés pour cette session seulement */ }
+}
+
+/** Ordre d'affichage : Domicile, Travail, puis les autres par ordre d'ajout. */
+function sortFavorites(list: Favorite[]): Favorite[] {
+  const rank = (f: Favorite) => (f.kind === "home" ? 0 : f.kind === "work" ? 1 : 2);
+  return [...list].sort((a, b) => rank(a) - rank(b));
+}
+
 export async function saveFavorite(kind: Favorite["kind"], label: string, address: string, at: LngLat): Promise<boolean> {
-  const p = getState().profile;
-  if (!p) return false;
+  const clean = label.trim().slice(0, 80) || tr("favorites.unnamed");
+  const addr = address.slice(0, 200);
+  if (!hasAccount()) {
+    let list = readLocalFavorites();
+    if (kind !== "other") list = list.filter((f) => f.kind !== kind);
+    list.push({ id: `local-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`, kind, label: clean, address: addr, lat: at[1], lng: at[0] });
+    writeLocalFavorites(list);
+    setState({ favorites: sortFavorites(list) });
+    toast(tr("favorites.savedLocal"), "success");
+    return true;
+  }
   if (kind !== "other") {
     const existing = getState().favorites.find((f) => f.kind === kind);
     if (existing) await supabase.from("favorites").delete().eq("id", existing.id);
   }
-  const { error } = await supabase.from("favorites").insert({ kind, label, address, lat: at[1], lng: at[0] });
+  const { error } = await supabase.from("favorites").insert({ kind, label: clean, address: addr, lat: at[1], lng: at[0] });
   if (error) {
     toast(tr("account.error", { msg: error.message }), "error");
     return false;
   }
   await loadUserData();
-  toast(tr("account.saved"), "success");
+  toast(tr("favorites.saved"), "success");
   return true;
 }
 
+export async function renameFavorite(id: string, label: string): Promise<void> {
+  const clean = label.trim().slice(0, 80);
+  if (!clean) return;
+  if (id.startsWith("local-")) {
+    const list = readLocalFavorites().map((f) => (f.id === id ? { ...f, label: clean } : f));
+    writeLocalFavorites(list);
+  } else {
+    const { error } = await supabase.from("favorites").update({ label: clean }).eq("id", id);
+    if (error) { toast(tr("account.error", { msg: error.message }), "error"); return; }
+  }
+  setState((s) => ({ favorites: s.favorites.map((f) => (f.id === id ? { ...f, label: clean } : f)) }));
+}
+
 export async function deleteFavorite(id: string): Promise<void> {
-  await supabase.from("favorites").delete().eq("id", id);
+  if (id.startsWith("local-")) writeLocalFavorites(readLocalFavorites().filter((f) => f.id !== id));
+  else await supabase.from("favorites").delete().eq("id", id);
   setState((s) => ({ favorites: s.favorites.filter((f) => f.id !== id) }));
+}
+
+/** Transfère les favoris de l'appareil vers le compte qui vient de se connecter. */
+async function migrateLocalFavorites(server: Favorite[]): Promise<boolean> {
+  const local = readLocalFavorites();
+  if (!local.length) return false;
+  const rows = local
+    .filter((f) => f.kind === "other" || !server.some((x) => x.kind === f.kind))
+    .map((f) => ({ kind: f.kind, label: f.label, address: f.address, lat: f.lat, lng: f.lng }));
+  if (rows.length) {
+    const { error } = await supabase.from("favorites").insert(rows);
+    if (error) return false;
+  }
+  writeLocalFavorites([]);
+  toast(tr("favorites.migrated", { n: rows.length }), "success");
+  return true;
 }
 
 export async function addHistory(label: string, at: LngLat): Promise<void> {

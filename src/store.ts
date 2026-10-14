@@ -13,6 +13,8 @@ export type ThemePref = "auto" | "light" | "dark";
 export type Panel = "search" | "incidents" | "account";
 /** Hauteur de la feuille inférieure (mobile) : réduite, moitié d'écran, agrandie. */
 export type SheetLevel = "peek" | "half" | "full";
+/** Ce que définit un toucher sur la carte en mode sélection. */
+export type PickTarget = "destination" | "origin" | "favorite";
 export type RtStatus = "connecting" | "connected" | "reconnecting" | "offline";
 
 export interface Place { label: string; lngLat: LngLat }
@@ -89,15 +91,17 @@ export interface State {
   reportSheet: { at: LngLat | null; source: "position" | "center" | "picked" } | null;
   layerMenu: boolean;
   /** Mode « choisir sur la carte » : le prochain toucher sur la carte définit ce point. */
-  pickMode: "destination" | "origin" | null;
+  pickMode: PickTarget | null;
   /** Point touché en mode sélection, en attente du choix : point exact (X,Y) ou POI le plus proche. */
   pickChoice: {
-    target: "destination" | "origin";
+    target: PickTarget;
     point: LngLat;
     address: string | null;
     poi: { name: string; lngLat: LngLat; distance: number; kind: string } | null;
     loading: boolean;
   } | null;
+  /** Fiche « enregistrer dans mes favoris » ouverte pour ce lieu. */
+  favoriteDraft: { label: string; address: string; lngLat: LngLat; kind?: Favorite["kind"] } | null;
   mapCommand: { id: number; center: LngLat; zoom?: number; card?: boolean } | null;
   toasts: Toast[];
 }
@@ -168,6 +172,7 @@ let state: State = {
   layerMenu: false,
   pickMode: null,
   pickChoice: null,
+  favoriteDraft: null,
   mapCommand: null,
   toasts: [],
 };
